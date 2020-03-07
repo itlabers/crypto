@@ -108,8 +108,11 @@ func checkChainSSLServerPolicy(c *Certificate, chainCtx *syscall.CertChainContex
 	}
 	sslPara.Size = uint32(unsafe.Sizeof(*sslPara))
 
+	convertToPolicyParaType := func(p unsafe.Pointer) syscall.Pointer {
+		return (syscall.Pointer)(p)
+	}
 	para := &syscall.CertChainPolicyPara{
-		ExtraPolicyPara: uintptr(unsafe.Pointer(sslPara)),
+		ExtraPolicyPara: convertToPolicyParaType(unsafe.Pointer(sslPara)),
 	}
 	para.Size = uint32(unsafe.Sizeof(*para))
 

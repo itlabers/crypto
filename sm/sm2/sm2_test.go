@@ -9,8 +9,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
+	"github.com/itlabers/crypto/sm/sm3"
 	"testing"
-	"crypto/sm/sm3"
 )
 
 func TestSignVerify(t *testing.T) {
@@ -34,14 +34,14 @@ func TestSignVerify(t *testing.T) {
 }
 
 func TestBase(t *testing.T) {
-	msg := []byte{1,2,3,4}
+	msg := []byte{1, 2, 3, 4}
 	priv, err := GenerateKey(rand.Reader)
 	if err != nil {
 		panic("GenerateKey failed")
 	}
-	fmt.Printf("D:%s\n" , priv.D.Text(16))
-	fmt.Printf("X:%s\n" , priv.X.Text(16))
-	fmt.Printf("Y:%s\n" , priv.Y.Text(16))
+	fmt.Printf("D:%s\n", priv.D.Text(16))
+	fmt.Printf("X:%s\n", priv.X.Text(16))
+	fmt.Printf("Y:%s\n", priv.Y.Text(16))
 
 	hfunc := sm3.New()
 	hfunc.Write(msg)
@@ -53,14 +53,12 @@ func TestBase(t *testing.T) {
 		panic(err)
 	}
 
-	fmt.Printf("R:%s\n" , r.Text(16))
-	fmt.Printf("S:%s\n" , s.Text(16))
-
+	fmt.Printf("R:%s\n", r.Text(16))
+	fmt.Printf("S:%s\n", s.Text(16))
 
 	ret := Verify(&priv.PublicKey, hash, r, s)
 	fmt.Println(ret)
 }
-
 
 func TestKeyGeneration(t *testing.T) {
 	priv, err := GenerateKey(rand.Reader)
@@ -77,7 +75,7 @@ func TestKeyGeneration(t *testing.T) {
 func BenchmarkSign(b *testing.B) {
 	b.ResetTimer()
 	origin := []byte("testing")
-	hashed  := sm3.SumSM3(origin)
+	hashed := sm3.SumSM3(origin)
 	priv, _ := GenerateKey(rand.Reader)
 	b.ReportAllocs()
 	b.ResetTimer()

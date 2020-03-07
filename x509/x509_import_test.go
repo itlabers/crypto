@@ -11,14 +11,14 @@ package main
 
 import (
 	"crypto/rand"
-	"crypto/x509"
+	"github.com/itlabers/crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
 	"time"
 )
 
-func main() {
+func TestLoad(t *testing.T) {
 	block, _ := pem.Decode([]byte(pemPrivateKey))
 	rsaPriv, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {

@@ -7,7 +7,7 @@ package x509
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	sm "github.com/flyinox/crypto/sm/sm2"
+	sm "github.com/itlabers/crypto/sm/sm2"
 	"encoding/asn1"
 	"errors"
 	"fmt"
