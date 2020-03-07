@@ -16,14 +16,13 @@ limitations under the License.
 package sm2
 
 import (
-	"math/big"
 	"crypto/elliptic"
+	"math/big"
 	"sync"
 )
 
-
 type p256Curve struct {
-		*elliptic.CurveParams
+	*elliptic.CurveParams
 }
 
 var p256Sm2Params *elliptic.CurveParams

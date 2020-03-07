@@ -9,8 +9,8 @@ import (
 	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha1"
-	"crypto/x509"
 	"errors"
+	"github.com/itlabers/crypto/x509"
 	"io"
 )
 

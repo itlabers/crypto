@@ -45,6 +45,8 @@ func publicKey(priv interface{}) interface{} {
 		return &k.PublicKey
 	case ed25519.PrivateKey:
 		return k.Public().(ed25519.PublicKey)
+	case *sm2.PrivateKey:
+		return k.Public()
 	default:
 		return nil
 	}

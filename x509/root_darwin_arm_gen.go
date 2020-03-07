@@ -18,10 +18,10 @@ package main
 
 import (
 	"bytes"
-	"crypto/x509"
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"github.com/itlabers/crypto/x509"
 	"go/format"
 	"io/ioutil"
 	"log"

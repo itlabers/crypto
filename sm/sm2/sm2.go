@@ -96,7 +96,6 @@ func generateRandK(rand io.Reader, c elliptic.Curve) (k *big.Int) {
 	return
 }
 
-
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	var one = new(big.Int).SetInt64(1)
 	if len(hash) < 32 {

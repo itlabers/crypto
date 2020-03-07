@@ -10,9 +10,9 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/subtle"
-	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/itlabers/crypto/x509"
 	"io"
 	"sync/atomic"
 )
