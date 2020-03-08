@@ -187,6 +187,7 @@ var supportedSignatureAlgorithms = []SignatureScheme{
 	ECDSAWithP521AndSHA512,
 	PKCS1WithSHA1,
 	ECDSAWithSHA1,
+	SM2WithSM3,
 }
 
 // supportedSignatureAlgorithmsTLS12 contains the signature and hash algorithms
@@ -202,6 +203,7 @@ var supportedSignatureAlgorithmsTLS12 = []SignatureScheme{
 	ECDSAWithP521AndSHA512,
 	PKCS1WithSHA1,
 	ECDSAWithSHA1,
+	SM2WithSM3,
 }
 
 // helloRetryRequestRandom is set as the Random value of a ServerHello
@@ -341,7 +343,6 @@ const (
 	ECDSAWithSHA1 SignatureScheme = 0x0203
 
 	SM2WithSM3 SignatureScheme = 0x0303
-
 )
 
 // ClientHelloInfo contains information from a ClientHello message in order to

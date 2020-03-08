@@ -847,7 +847,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 	}
 
 	switch certs[0].PublicKey.(type) {
-	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey,*sm2.PublicKey:
+	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey, *sm2.PublicKey:
 		break
 	default:
 		c.sendAlert(alertUnsupportedCertificate)
@@ -862,7 +862,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 // tls11SignatureSchemes contains the signature schemes that we synthesise for
 // a TLS <= 1.1 connection, based on the supported certificate types.
 var (
-	tls11SignatureSchemes      = []SignatureScheme{ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512, PKCS1WithSHA1}
+	tls11SignatureSchemes      = []SignatureScheme{SM2WithSM3, ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512, PKCS1WithSHA1}
 	tls11SignatureSchemesECDSA = tls11SignatureSchemes[:3]
 	tls11SignatureSchemesRSA   = tls11SignatureSchemes[3:]
 )
@@ -905,7 +905,7 @@ func certificateRequestInfoFromMsg(certReq *certificateRequestMsg) *CertificateR
 	cri.SignatureSchemes = make([]SignatureScheme, 0, len(certReq.supportedSignatureAlgorithms))
 	for _, sigScheme := range certReq.supportedSignatureAlgorithms {
 		switch signatureFromSignatureScheme(sigScheme) {
-		case signatureECDSA, signatureEd25519:
+		case signatureECDSA, signatureEd25519, signatureSM2withSm3:
 			if ecAvail {
 				cri.SignatureSchemes = append(cri.SignatureSchemes, sigScheme)
 			}
