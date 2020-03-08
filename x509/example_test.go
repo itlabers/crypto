@@ -8,9 +8,10 @@ import (
 	"crypto/dsa"
 	"crypto/ecdsa"
 	"crypto/rsa"
-	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"github.com/itlabers/crypto/sm/sm2"
+	"github.com/itlabers/crypto/x509"
 )
 
 func ExampleCertificate_Verify() {
@@ -96,20 +97,19 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 
 func ExampleParsePKIXPublicKey() {
 	const pubPEM = `
------BEGIN PUBLIC KEY-----
-MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAlRuRnThUjU8/prwYxbty
-WPT9pURI3lbsKMiB6Fn/VHOKE13p4D8xgOCADpdRagdT6n4etr9atzDKUSvpMtR3
-CP5noNc97WiNCggBjVWhs7szEe8ugyqF23XwpHQ6uV1LKH50m92MbOWfCtjU9p/x
-qhNpQQ1AZhqNy5Gevap5k8XzRmjSldNAFZMY7Yv3Gi+nyCwGwpVtBUwhuLzgNFK/
-yDtw2WcWmUU7NuC8Q6MWvPebxVtCfVp/iQU6q60yyt6aGOBkhAX0LpKAEhKidixY
-nP9PNVBvxgu3XZ4P36gZV6+ummKdBVnc3NqwBLu5+CcdRdusmHPHd5pHf4/38Z3/
-6qU2a/fPvWzceVTEgZ47QjFMTCTmCwNt29cvi7zZeQzjtwQgn4ipN9NibRH/Ax/q
-TbIzHfrJ1xa2RteWSdFjwtxi9C20HUkjXSeI4YlzQMH0fPX6KCE7aVePTOnB69I/
-a9/q96DiXZajwlpq3wFctrs1oXqBp5DVrCIj8hU2wNgB7LtQ1mCtsYz//heai0K9
-PhE4X6hiE0YmeAZjR0uHl8M/5aW9xCoJ72+12kKpWAa0SFRWLy6FejNYCYpkupVJ
-yecLk/4L1W0l6jQQZnWErXZYe0PNFcmwGXy1Rep83kfBRNKRy5tvocalLlwXLdUk
-AIU+2GKjyT3iMuzZxxFxPFMCAwEAAQ==
------END PUBLIC KEY-----`
+-----BEGIN CERTIFICATE-----
+MIICCTCCAbCgAwIBAgIQVxB/bsqeX+6MNV1fzXBPETAKBggqgRzPVQGDdTBpMQsw
+CQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZy
+YW5jaXNjbzEUMBIGA1UEChMLZXhhbXBsZS5jb20xFzAVBgNVBAMTDmNhLmV4YW1w
+bGUuY29tMB4XDTIwMDMwNDE0MDUwMFoXDTMwMDMwMjE0MDUwMFowVjELMAkGA1UE
+BhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBGcmFuY2lz
+Y28xGjAYBgNVBAMMEUFkbWluQGV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoEc
+z1UBgi0DQgAE2+vf+J+rfz6OD70GcufNply9ZhgR0mR8lipKAev0oUBq9M2uMh7y
+kJ1tye03qysYg+ltvDjy9oewxdK91N2jt6NNMEswDgYDVR0PAQH/BAQDAgeAMAwG
+A1UdEwEB/wQCMAAwKwYDVR0jBCQwIoAgZXD1YlxAvcypD40w7TgrfAIP8FVdmAMd
+4SJU8VonjiwwCgYIKoEcz1UBg3UDRwAwRAIgCzSjdTrcY+tINiqvCGdARMzDgjJS
+2uNBwi/se42ZdSQCICBtfAwaRrwDyNe6hUoa+RAVgX9Cd3nJ17wFN1Ck5bTQ
+-----END CERTIFICATE-----`
 
 	block, _ := pem.Decode([]byte(pubPEM))
 	if block == nil {
@@ -128,6 +128,8 @@ AIU+2GKjyT3iMuzZxxFxPFMCAwEAAQ==
 		fmt.Println("pub is of type DSA:", pub)
 	case *ecdsa.PublicKey:
 		fmt.Println("pub is of type ECDSA:", pub)
+	case *sm2.PublicKey:
+		fmt.Println("pub is of type sm2:", pub)
 	default:
 		panic("unknown type of public key")
 	}

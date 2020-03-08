@@ -54,6 +54,8 @@ const (
 	// suiteSHA384 indicates that the cipher suite uses SHA384 as the
 	// handshake hash.
 	suiteSHA384
+
+	suiteSM3
 	// suiteDefaultOff indicates that this cipher suite is not included by
 	// default.
 	suiteDefaultOff

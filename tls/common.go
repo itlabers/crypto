@@ -162,6 +162,7 @@ const (
 	signatureRSAPSS
 	signatureECDSA
 	signatureEd25519
+	signatureSM2withSm3
 )
 
 // directSigning is a standard Hash value that signals that no pre-hashing
@@ -338,6 +339,9 @@ const (
 	// Legacy signature and hash algorithms for TLS 1.2.
 	PKCS1WithSHA1 SignatureScheme = 0x0201
 	ECDSAWithSHA1 SignatureScheme = 0x0203
+
+	SM2WithSM3 SignatureScheme = 0x0303
+
 )
 
 // ClientHelloInfo contains information from a ClientHello message in order to
@@ -1216,6 +1220,8 @@ func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
 		return signatureECDSA
 	case Ed25519:
 		return signatureEd25519
+	case SM2WithSM3:
+		return signatureSM2withSm3
 	default:
 		return 0
 	}

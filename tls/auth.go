@@ -14,8 +14,11 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"github.com/itlabers/crypto/sm/sm2"
+	"github.com/itlabers/crypto/x509"
 	"hash"
 	"io"
+	"math/big"
 )
 
 // pickSignatureAlgorithm selects a signature algorithm that is compatible with
@@ -40,6 +43,8 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 			}
 		case *ecdsa.PublicKey:
 			return ECDSAWithSHA1, signatureECDSA, crypto.SHA1, nil
+		case *sm2.PublicKey:
+			return SM2WithSM3, signatureSM2withSm3, x509.SM3, nil
 		case ed25519.PublicKey:
 			if tlsVersion < VersionTLS12 {
 				// RFC 8422 specifies support for Ed25519 in TLS 1.0 and 1.1,
@@ -71,6 +76,10 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 			if sigType == signatureECDSA {
 				return sigAlg, sigType, hashAlg, nil
 			}
+		case *sm2.PublicKey:
+			if sigType == signatureSM2withSm3 {
+				return sigAlg, sigType, hashAlg, nil
+			}
 		case ed25519.PublicKey:
 			if sigType == signatureEd25519 {
 				return sigAlg, sigType, hashAlg, nil
@@ -100,6 +109,24 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 		}
 		if !ecdsa.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
 			return errors.New("tls: ECDSA verification failure")
+		}
+	case signatureSM2withSm3:
+		pubKey, ok := pubkey.(*sm2.PublicKey)
+		if !ok {
+			return errors.New("tls: sm2 signing requires a sm2 public key")
+		}
+		type sm2Signature struct {
+			R, S *big.Int
+		}
+		sm2Sig := new(sm2Signature)
+		if _, err := asn1.Unmarshal(sig, sm2Sig); err != nil {
+			return err
+		}
+		if sm2Sig.R.Sign() <= 0 || sm2Sig.S.Sign() <= 0 {
+			return errors.New("tls: sm2 signature contained zero or negative values")
+		}
+		if !sm2.Verify(pubKey, signed, sm2Sig.R, sm2Sig.S) {
+			return errors.New("tls: sm2 verification failure")
 		}
 	case signatureEd25519:
 		pubKey, ok := pubkey.(ed25519.PublicKey)
@@ -196,6 +223,8 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 			return []SignatureScheme{ECDSAWithP384AndSHA384}
 		case elliptic.P521():
 			return []SignatureScheme{ECDSAWithP521AndSHA512}
+		case sm2.P256Sm2():
+			return []SignatureScheme{SM2WithSM3}
 		default:
 			return nil
 		}
@@ -213,6 +242,16 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 			PSSWithSHA384,
 			PSSWithSHA512,
 		}
+	case *sm2.PublicKey:{
+		if version != VersionTLS13 {
+			return []SignatureScheme{
+				SM2WithSM3,
+			}
+		}
+		return []SignatureScheme{
+			SM2WithSM3,
+		}
+	}
 	case ed25519.PublicKey:
 		return []SignatureScheme{Ed25519}
 	default:
@@ -224,7 +263,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 // an unsupported private key.
 func unsupportedCertificateError(cert *Certificate) error {
 	switch cert.PrivateKey.(type) {
-	case rsa.PrivateKey, ecdsa.PrivateKey:
+	case rsa.PrivateKey, ecdsa.PrivateKey,sm2.PrivateKey:
 		return fmt.Errorf("tls: unsupported certificate: private key is %T, expected *%T",
 			cert.PrivateKey, cert.PrivateKey)
 	case *ed25519.PrivateKey:
@@ -247,6 +286,7 @@ func unsupportedCertificateError(cert *Certificate) error {
 			return fmt.Errorf("tls: unsupported certificate curve (%s)", pub.Curve.Params().Name)
 		}
 	case *rsa.PublicKey:
+	case *sm2.PublicKey:
 	case ed25519.PublicKey:
 	default:
 		return fmt.Errorf("tls: unsupported certificate key (%T)", pub)

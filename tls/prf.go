@@ -13,6 +13,8 @@ import (
 	"crypto/sha512"
 	"errors"
 	"fmt"
+	"github.com/itlabers/crypto/sm/sm3"
+	"github.com/itlabers/crypto/x509"
 	"hash"
 )
 
@@ -127,7 +129,10 @@ func prfAndHashForVersion(version uint16, suite *cipherSuite) (func(result, secr
 		if suite.flags&suiteSHA384 != 0 {
 			return prf12(sha512.New384), crypto.SHA384
 		}
-		return prf12(sha256.New), crypto.SHA256
+		if suite.flags&suiteSM3 != 0 {
+			return prf12(sm3.New), x509.SM3
+		}
+		return prf12(sha256.New),crypto.SHA256
 	default:
 		panic("unknown version")
 	}
@@ -189,6 +194,8 @@ func hashFromSignatureScheme(signatureAlgorithm SignatureScheme) (crypto.Hash, e
 		return crypto.SHA512, nil
 	case Ed25519:
 		return directSigning, nil
+	case SM2WithSM3:
+		return x509.SM3, nil
 	default:
 		return 0, fmt.Errorf("tls: unsupported signature algorithm: %#04x", signatureAlgorithm)
 	}
@@ -333,7 +340,7 @@ func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Has
 		return h.buffer, nil
 	}
 
-	if h.version >= VersionTLS12 {
+	if h.version >= VersionTLS12 || sigType == signatureSM2withSm3 {
 		hash := hashAlg.New()
 		hash.Write(h.buffer)
 		return hash.Sum(nil), nil

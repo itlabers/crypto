@@ -13,6 +13,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"github.com/itlabers/crypto/sm/sm2"
 	"github.com/itlabers/crypto/x509"
 	"io"
 	"net"
@@ -846,7 +847,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 	}
 
 	switch certs[0].PublicKey.(type) {
-	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey:
+	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey,*sm2.PublicKey:
 		break
 	default:
 		c.sendAlert(alertUnsupportedCertificate)

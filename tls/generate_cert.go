@@ -15,7 +15,9 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/x509"
+	"github.com/itlabers/crypto/x509"
+	"github.com/itlabers/crypto/sm2"
+
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"flag"
@@ -46,7 +48,7 @@ func publicKey(priv interface{}) interface{} {
 	case ed25519.PrivateKey:
 		return k.Public().(ed25519.PublicKey)
 	case *sm2.PrivateKey:
-		return k.Public()
+		return &k.Public()
 	default:
 		return nil
 	}
@@ -76,6 +78,8 @@ func main() {
 		priv, err = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	case "P521":
 		priv, err = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	case "P256V1":
+		priv, err = sm2.GenerateKey(rand.Reader)
 	default:
 		log.Fatalf("Unrecognized elliptic curve: %q", *ecdsaCurve)
 	}
