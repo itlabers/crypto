@@ -21,11 +21,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"github.com/itlabers/crypto/sm/sm2"
-	"github.com/itlabers/crypto/x509"
+	ex509 "github.com/itlabers/crypto/x509"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -183,14 +185,14 @@ func Dial(network, addr string, config *Config) (*Conn, error) {
 // may contain intermediate certificates following the leaf certificate to
 // form a certificate chain. On successful return, Certificate.Leaf will
 // be nil because the parsed form of the certificate is not retained.
-func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
+func LoadX509KeyPair(certFile, keyFile string) (tls.Certificate, error) {
 	certPEMBlock, err := ioutil.ReadFile(certFile)
 	if err != nil {
-		return Certificate{}, err
+		return tls.Certificate{}, err
 	}
 	keyPEMBlock, err := ioutil.ReadFile(keyFile)
 	if err != nil {
-		return Certificate{}, err
+		return tls.Certificate{}, err
 	}
 	return X509KeyPair(certPEMBlock, keyPEMBlock)
 }
@@ -198,10 +200,9 @@ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
 // X509KeyPair parses a public/private key pair from a pair of
 // PEM encoded data. On successful return, Certificate.Leaf will be nil because
 // the parsed form of the certificate is not retained.
-func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
-	fail := func(err error) (Certificate, error) { return Certificate{}, err }
-
-	var cert Certificate
+func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (tls.Certificate, error) {
+	fail := func(err error) (tls.Certificate, error) { return tls.Certificate{}, err }
+	var cert tls.Certificate
 	var skippedBlockTypes []string
 	for {
 		var certDERBlock *pem.Block
@@ -247,7 +248,7 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 
 	// We don't need to parse the public key for TLS, but we so do anyway
 	// to check that it looks sane and matches the private key.
-	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	x509Cert, err := ex509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
 		return fail(err)
 	}
