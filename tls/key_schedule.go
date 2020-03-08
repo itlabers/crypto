@@ -9,6 +9,7 @@ import (
 	"crypto/hmac"
 	"crypto/subtle"
 	"errors"
+	"github.com/itlabers/crypto/sm/sm2"
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/hkdf"
@@ -141,6 +142,8 @@ func curveForCurveID(id CurveID) (elliptic.Curve, bool) {
 		return elliptic.P384(), true
 	case CurveP521:
 		return elliptic.P521(), true
+	case SM2P256V1:
+		return sm2.P256Sm2().Params(), true
 	default:
 		return nil, false
 	}

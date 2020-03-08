@@ -18,7 +18,9 @@ import (
 	"github.com/itlabers/crypto/x509"
 	"hash"
 	"io"
+	"log"
 	"math/big"
+	"reflect"
 )
 
 // pickSignatureAlgorithm selects a signature algorithm that is compatible with
@@ -29,6 +31,8 @@ import (
 // The returned SignatureScheme codepoint is only meaningful for TLS 1.2,
 // previous TLS versions have a fixed hash function.
 func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []SignatureScheme, tlsVersion uint16) (sigAlg SignatureScheme, sigType uint8, hashFunc crypto.Hash, err error) {
+	log.Printf("tlsVersion L %v   KeyType: %v  ", tlsVersion, reflect.TypeOf(pubkey))
+
 	if tlsVersion < VersionTLS12 || len(peerSigAlgs) == 0 {
 		// For TLS 1.1 and before, the signature algorithm could not be
 		// negotiated and the hash is fixed based on the signature type. For TLS
@@ -42,7 +46,13 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 				return PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1, nil
 			}
 		case *ecdsa.PublicKey:
-			return ECDSAWithSHA1, signatureECDSA, crypto.SHA1, nil
+			{
+				publicKey := pubkey.(*ecdsa.PublicKey)
+				if publicKey.Curve == sm2.P256Sm2() {
+					return SM2WithSM3, signatureSM2withSm3, x509.SM3, nil
+				}
+				return ECDSAWithSHA1, signatureECDSA, crypto.SHA1, nil
+			}
 		case *sm2.PublicKey:
 			return SM2WithSM3, signatureSM2withSm3, x509.SM3, nil
 		case ed25519.PublicKey:
@@ -73,7 +83,7 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 				return sigAlg, sigType, hashAlg, nil
 			}
 		case *ecdsa.PublicKey:
-			if sigType == signatureECDSA {
+			if sigType == signatureECDSA || sigType == signatureSM2withSm3 {
 				return sigAlg, sigType, hashAlg, nil
 			}
 		case *sm2.PublicKey:
@@ -242,16 +252,17 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 			PSSWithSHA384,
 			PSSWithSHA512,
 		}
-	case *sm2.PublicKey:{
-		if version != VersionTLS13 {
+	case *sm2.PublicKey:
+		{
+			if version != VersionTLS13 {
+				return []SignatureScheme{
+					SM2WithSM3,
+				}
+			}
 			return []SignatureScheme{
 				SM2WithSM3,
 			}
 		}
-		return []SignatureScheme{
-			SM2WithSM3,
-		}
-	}
 	case ed25519.PublicKey:
 		return []SignatureScheme{Ed25519}
 	default:
@@ -263,7 +274,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 // an unsupported private key.
 func unsupportedCertificateError(cert *Certificate) error {
 	switch cert.PrivateKey.(type) {
-	case rsa.PrivateKey, ecdsa.PrivateKey,sm2.PrivateKey:
+	case rsa.PrivateKey, ecdsa.PrivateKey, sm2.PrivateKey:
 		return fmt.Errorf("tls: unsupported certificate: private key is %T, expected *%T",
 			cert.PrivateKey, cert.PrivateKey)
 	case *ed25519.PrivateKey:

@@ -132,7 +132,7 @@ func prfAndHashForVersion(version uint16, suite *cipherSuite) (func(result, secr
 		if suite.flags&suiteSM3 != 0 {
 			return prf12(sm3.New), x509.SM3
 		}
-		return prf12(sha256.New),crypto.SHA256
+		return prf12(sha256.New), crypto.SHA256
 	default:
 		panic("unknown version")
 	}
@@ -346,7 +346,7 @@ func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Has
 		return hash.Sum(nil), nil
 	}
 
-	if sigType == signatureECDSA {
+	if sigType == signatureECDSA || sigType == signatureSM2withSm3 {
 		return h.server.Sum(nil), nil
 	}
 

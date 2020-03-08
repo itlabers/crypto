@@ -117,6 +117,7 @@ const (
 	CurveP384 CurveID = 24
 	CurveP521 CurveID = 25
 	X25519    CurveID = 29
+	SM2P256V1 CurveID = 30
 )
 
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.

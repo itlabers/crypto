@@ -10,6 +10,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"errors"
+	"github.com/itlabers/crypto/sm/sm3"
 	"github.com/itlabers/crypto/x509"
 	"io"
 )
@@ -90,6 +91,15 @@ func sha1Hash(slices [][]byte) []byte {
 	return hsha1.Sum(nil)
 }
 
+// sm3Hash calculates a SHA1 hash over the given byte slices.
+func sm3Hash(slices [][]byte) []byte {
+	hsm3 := sm3.New()
+	for _, slice := range slices {
+		hsm3.Write(slice)
+	}
+	return hsm3.Sum(nil)
+}
+
 // md5SHA1Hash implements TLS 1.0's hybrid hash function which consists of the
 // concatenation of an MD5 and SHA1 hash.
 func md5SHA1Hash(slices [][]byte) []byte {
@@ -125,6 +135,9 @@ func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint1
 	}
 	if sigType == signatureECDSA {
 		return sha1Hash(slices)
+	}
+	if sigType == signatureSM2withSm3 {
+		return sm3Hash(slices)
 	}
 	return md5SHA1Hash(slices)
 }
