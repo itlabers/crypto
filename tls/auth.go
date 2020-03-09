@@ -60,7 +60,7 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 				}
 				return ECDSAWithSHA1, signatureECDSA, crypto.SHA1, nil
 			}
-		case sm2.PublicKey:
+		case *sm2.PublicKey:
 			return SM2WithSM3, signatureSM2withSm3, gmx509.SM3, nil
 		case ed25519.PublicKey:
 			if tlsVersion < VersionTLS12 {
@@ -72,7 +72,7 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 			}
 			return Ed25519, signatureEd25519, directSigning, nil
 		default:
-			return 0, 0, 0, fmt.Errorf("tls: unsupported public key: %T", pubkey)
+			return 0, 0, 0, fmt.Errorf("tls: peerSigAlgs unsupported public key: %T", pubkey)
 		}
 	}
 	for _, sigAlg := range peerSigAlgs {
@@ -93,14 +93,14 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 			if sigType == signatureECDSA || sigType == signatureSM2withSm3 {
 				return sigAlg, sigType, hashAlg, nil
 			}
-		case sm2.PublicKey:
+		case *sm2.PublicKey:
 			return SM2WithSM3, signatureSM2withSm3, gmx509.SM3, nil
 		case ed25519.PublicKey:
 			if sigType == signatureEd25519 {
 				return sigAlg, sigType, hashAlg, nil
 			}
 		default:
-			return 0, 0, 0, fmt.Errorf("tls: unsupported public key: %T", pubkey)
+			return 0, 0, 0, fmt.Errorf("tls: ourSigAlgs unsupported public key: %T", pubkey)
 		}
 	}
 	return 0, 0, 0, errors.New("tls: peer doesn't support any common signature algorithms")
