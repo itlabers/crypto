@@ -14,7 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/itlabers/crypto/sm/sm2"
-	"github.com/itlabers/crypto/x509"
+	gmx509 "github.com/itlabers/crypto/x509"
 	"io"
 	"net"
 	"strconv"
@@ -811,9 +811,9 @@ func (hs *clientHandshakeState) sendFinished(out []byte) error {
 // verifyServerCertificate parses and verifies the provided chain, setting
 // c.verifiedChains and c.peerCertificates or sending the appropriate alert.
 func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
-	certs := make([]*x509.Certificate, len(certificates))
+	certs := make([]*gmx509.Certificate, len(certificates))
 	for i, asn1Data := range certificates {
-		cert, err := x509.ParseCertificate(asn1Data)
+		cert, err := gmx509.ParseCertificate(asn1Data)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
 			return errors.New("tls: failed to parse certificate from server: " + err.Error())
@@ -822,11 +822,11 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 	}
 
 	if !c.config.InsecureSkipVerify {
-		opts := x509.VerifyOptions{
+		opts := gmx509.VerifyOptions{
 			Roots:         c.config.RootCAs,
 			CurrentTime:   c.config.time(),
 			DNSName:       c.config.ServerName,
-			Intermediates: x509.NewCertPool(),
+			Intermediates: gmx509.NewCertPool(),
 		}
 		for _, cert := range certs[1:] {
 			opts.Intermediates.AddCert(cert)
@@ -949,7 +949,7 @@ func (c *Conn) getClientCertificate(cri *CertificateRequestInfo) (*Certificate, 
 			// chain.Leaf was nil.
 			if j != 0 || x509Cert == nil {
 				var err error
-				if x509Cert, err = x509.ParseCertificate(cert); err != nil {
+				if x509Cert, err = gmx509.ParseCertificate(cert); err != nil {
 					c.sendAlert(alertInternalError)
 					return nil, errors.New("tls: failed to parse configured certificate chain #" + strconv.Itoa(i) + ": " + err.Error())
 				}

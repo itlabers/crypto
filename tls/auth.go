@@ -15,7 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/itlabers/crypto/sm/sm2"
-	"github.com/itlabers/crypto/x509"
+	gmx509 "github.com/itlabers/crypto/x509"
 	"hash"
 	"io"
 	"log"
@@ -31,7 +31,7 @@ import (
 // The returned SignatureScheme codepoint is only meaningful for TLS 1.2,
 // previous TLS versions have a fixed hash function.
 func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []SignatureScheme, tlsVersion uint16) (sigAlg SignatureScheme, sigType uint8, hashFunc crypto.Hash, err error) {
-	log.Printf("tlsVersion L %v   KeyType: %v  ", tlsVersion, reflect.TypeOf(pubkey))
+	log.Printf("tlsVersion  %v peerSigAlgs：%v ,ourSigAlgs:%v, KeyType: %v  ", tlsVersion,peerSigAlgs, ourSigAlgs,reflect.TypeOf(pubkey))
 
 	if tlsVersion < VersionTLS12 || len(peerSigAlgs) == 0 {
 		// For TLS 1.1 and before, the signature algorithm could not be
@@ -49,12 +49,12 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 			{
 				publicKey := pubkey.(*ecdsa.PublicKey)
 				if publicKey.Curve == sm2.P256Sm2() {
-					return SM2WithSM3, signatureSM2withSm3, x509.SM3, nil
+					return SM2WithSM3, signatureSM2withSm3, gmx509.SM3, nil
 				}
 				return ECDSAWithSHA1, signatureECDSA, crypto.SHA1, nil
 			}
-		case *sm2.PublicKey:
-			return SM2WithSM3, signatureSM2withSm3, x509.SM3, nil
+		case sm2.PublicKey:
+			return SM2WithSM3, signatureSM2withSm3, gmx509.SM3, nil
 		case ed25519.PublicKey:
 			if tlsVersion < VersionTLS12 {
 				// RFC 8422 specifies support for Ed25519 in TLS 1.0 and 1.1,
@@ -86,7 +86,7 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 			if sigType == signatureECDSA || sigType == signatureSM2withSm3 {
 				return sigAlg, sigType, hashAlg, nil
 			}
-		case *sm2.PublicKey:
+		case sm2.PublicKey:
 			if sigType == signatureSM2withSm3 {
 				return sigAlg, sigType, hashAlg, nil
 			}

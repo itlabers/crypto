@@ -13,6 +13,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	gmx509 "github.com/itlabers/crypto/x509"
 	"io"
 	"math/big"
 	"net"
@@ -172,7 +173,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 	if test.key != nil {
 		key = test.key
 	}
-	derBytes, err := x509.MarshalPKCS8PrivateKey(key)
+	derBytes, err := gmx509.MarshalECPrivateKey(key)
 	if err != nil {
 		panic(err)
 	}
@@ -818,11 +819,11 @@ func TestHandshakeClientCertECDSA(t *testing.T) {
 // signed itself with RSA-PSS, mostly to check that crypto/x509 chain validation
 // works.
 func TestHandshakeClientCertRSAPSS(t *testing.T) {
-	cert, err := x509.ParseCertificate(testRSAPSSCertificate)
+	cert, err := gmx509.ParseCertificate(testRSAPSSCertificate)
 	if err != nil {
 		panic(err)
 	}
-	rootCAs := x509.NewCertPool()
+	rootCAs := gmx509.NewCertPool()
 	rootCAs.AddCert(cert)
 
 	config := testConfig.Clone()
@@ -897,12 +898,12 @@ func testResumption(t *testing.T, version uint16) {
 		Certificates: testConfig.Certificates,
 	}
 
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	issuer, err := gmx509.ParseCertificate(testRSACertificateIssuer)
 	if err != nil {
 		panic(err)
 	}
 
-	rootCAs := x509.NewCertPool()
+	rootCAs := gmx509.NewCertPool()
 	rootCAs.AddCert(issuer)
 
 	clientConfig := &Config{
@@ -1436,19 +1437,19 @@ func TestVerifyPeerCertificate(t *testing.T) {
 }
 
 func testVerifyPeerCertificate(t *testing.T, version uint16) {
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	issuer, err := gmx509.ParseCertificate(testRSACertificateIssuer)
 	if err != nil {
 		panic(err)
 	}
 
-	rootCAs := x509.NewCertPool()
+	rootCAs := gmx509.NewCertPool()
 	rootCAs.AddCert(issuer)
 
 	now := func() time.Time { return time.Unix(1476984729, 0) }
 
 	sentinelErr := errors.New("TestVerifyPeerCertificate")
 
-	verifyCallback := func(called *bool, rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
+	verifyCallback := func(called *bool, rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
 		if l := len(rawCerts); l != 1 {
 			return fmt.Errorf("got len(rawCerts) = %d, wanted 1", l)
 		}
@@ -1467,13 +1468,13 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 		{
 			configureServer: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
 					return verifyCallback(called, rawCerts, validatedChains)
 				}
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
 					return verifyCallback(called, rawCerts, validatedChains)
 				}
 			},
@@ -1495,7 +1496,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 		{
 			configureServer: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
 					return sentinelErr
 				}
 			},
@@ -1513,7 +1514,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 				config.InsecureSkipVerify = false
 			},
 			configureClient: func(config *Config, called *bool) {
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
 					return sentinelErr
 				}
 			},
@@ -1529,7 +1530,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = true
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
 					if l := len(rawCerts); l != 1 {
 						return fmt.Errorf("got len(rawCerts) = %d, wanted 1", l)
 					}
@@ -1882,7 +1883,7 @@ func TestGetClientCertificate(t *testing.T) {
 }
 
 func testGetClientCertificate(t *testing.T, version uint16) {
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
+	issuer, err := gmx509.ParseCertificate(testRSACertificateIssuer)
 	if err != nil {
 		panic(err)
 	}
@@ -1890,7 +1891,7 @@ func testGetClientCertificate(t *testing.T, version uint16) {
 	for i, test := range getClientCertificateTests {
 		serverConfig := testConfig.Clone()
 		serverConfig.ClientAuth = VerifyClientCertIfGiven
-		serverConfig.RootCAs = x509.NewCertPool()
+		serverConfig.RootCAs = gmx509.NewCertPool()
 		serverConfig.RootCAs.AddCert(issuer)
 		serverConfig.ClientCAs = serverConfig.RootCAs
 		serverConfig.Time = func() time.Time { return time.Unix(1476984729, 0) }

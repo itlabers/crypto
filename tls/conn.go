@@ -12,7 +12,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
-	"github.com/itlabers/crypto/x509"
+	gmx509 "github.com/itlabers/crypto/x509"
 	"io"
 	"net"
 	"sync"
@@ -45,10 +45,10 @@ type Conn struct {
 	cipherSuite      uint16
 	ocspResponse     []byte   // stapled OCSP response
 	scts             [][]byte // signed certificate timestamps from server
-	peerCertificates []*x509.Certificate
+	peerCertificates []*gmx509.Certificate
 	// verifiedChains contains the certificate chains that we built, as
 	// opposed to the ones presented by the server.
-	verifiedChains [][]*x509.Certificate
+	verifiedChains [][]*gmx509.Certificate
 	// serverName contains the server name indicated by the client, if any.
 	serverName string
 	// secureRenegotiation is true if the server echoed the secure

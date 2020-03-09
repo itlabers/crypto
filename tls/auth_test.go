@@ -6,18 +6,37 @@ package tls
 
 import (
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/ed25519"
+	_ "crypto/x509"
+	"encoding/pem"
+	"github.com/itlabers/crypto/sm/sm2"
+	gmx509 "github.com/itlabers/crypto/x509"
 	"testing"
 )
 
+const  pemPrivateKey  = `-----BEGIN PRIVATE KEY-----
+MHcCAQEEIAXi1kJW4CXSYA5drjlzXqtNokedNL1KQZg0FZ6+1eJAoAoGCCqBHM9V
+AYItoUQDQgAEaKv+ycIvC9GMbd6GqhQjo/ixmQ2ucrlray53GepZQeWCjtW0LQVP
+BXfgXzKG+kJ9Hhx+ZX6/PhDpi5jbikxX+g==
+-----END PRIVATE KEY-----
+`
 func TestSignatureSelection(t *testing.T) {
 	rsaCert := &testRSAPrivateKey.PublicKey
-	ecdsaCert := &testECDSAPrivateKey.PublicKey
+	ecdsaCert := &testECDSAPrivateKey.(*ecdsa.PrivateKey).PublicKey
 	ed25519Cert := testEd25519PrivateKey.Public().(ed25519.PublicKey)
+
 	sigsPKCS1WithSHA := []SignatureScheme{PKCS1WithSHA256, PKCS1WithSHA1}
-	sigsPSSWithSHA := []SignatureScheme{PSSWithSHA256, PSSWithSHA384}
+	//sigsPSSWithSHA := []SignatureScheme{PSSWithSHA256, PSSWithSHA384}
 	sigsECDSAWithSHA := []SignatureScheme{ECDSAWithP256AndSHA256, ECDSAWithSHA1}
 
+	block, _ := pem.Decode([]byte(pemPrivateKey))
+	sm2Priv, err := gmx509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		panic("Failed to parse private key: " + err.Error())
+	}
+	sm2Cert := sm2Priv.(*sm2.PrivateKey).PublicKey
+     t.Logf("rsaPriv:%v ", sm2Priv)
 	tests := []struct {
 		pubkey      crypto.PublicKey
 		peerSigAlgs []SignatureScheme
@@ -28,10 +47,11 @@ func TestSignatureSelection(t *testing.T) {
 		expectedSigType uint8
 		expectedHash    crypto.Hash
 	}{
+		{sm2Cert, nil, nil, VersionTLS12, SM2WithSM3, signatureSM2withSm3, gmx509.SM3},
 		// Hash is fixed for RSA in TLS 1.1 and before.
 		// https://tools.ietf.org/html/rfc4346#page-44
-		{rsaCert, nil, nil, VersionTLS11, 0, signaturePKCS1v15, crypto.MD5SHA1},
-		{rsaCert, nil, nil, VersionTLS10, 0, signaturePKCS1v15, crypto.MD5SHA1},
+		//{rsaCert, nil, nil, VersionTLS11, 0, signaturePKCS1v15, crypto.MD5SHA1},
+		/*{rsaCert, nil, nil, VersionTLS10, 0, signaturePKCS1v15, crypto.MD5SHA1},
 		{rsaCert, nil, nil, VersionSSL30, 0, signaturePKCS1v15, crypto.MD5SHA1},
 
 		// Before TLS 1.2, there is no signature_algorithms extension
@@ -61,7 +81,7 @@ func TestSignatureSelection(t *testing.T) {
 
 		// All results are fixed for Ed25519. RFC 8422, Section 5.10.
 		{ed25519Cert, []SignatureScheme{Ed25519}, []SignatureScheme{ECDSAWithSHA1, Ed25519}, VersionTLS12, Ed25519, signatureEd25519, directSigning},
-		{ed25519Cert, nil, nil, VersionTLS12, Ed25519, signatureEd25519, directSigning},
+		{ed25519Cert, nil, nil, VersionTLS12, Ed25519, signatureEd25519, directSigning},*/
 	}
 
 	for testNo, test := range tests {

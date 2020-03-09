@@ -15,7 +15,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"github.com/itlabers/crypto/x509"
+	gmx509 "github.com/itlabers/crypto/x509"
 	"github.com/itlabers/crypto/sm2"
 
 	"crypto/x509/pkix"
@@ -105,7 +105,7 @@ func main() {
 		log.Fatalf("Failed to generate serial number: %s", err)
 	}
 
-	template := x509.Certificate{
+	template := gmx509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization: []string{"Acme Co"},
@@ -113,8 +113,8 @@ func main() {
 		NotBefore: notBefore,
 		NotAfter:  notAfter,
 
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		KeyUsage:              gmx509.KeyUsageKeyEncipherment | gmx509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []gmx509.ExtKeyUsage{gmx509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 	}
 
@@ -129,10 +129,10 @@ func main() {
 
 	if *isCA {
 		template.IsCA = true
-		template.KeyUsage |= x509.KeyUsageCertSign
+		template.KeyUsage |= gmx509.KeyUsageCertSign
 	}
 
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(priv), priv)
+	derBytes, err := gmx509.CreateCertificate(rand.Reader, &template, &template, publicKey(priv), priv)
 	if err != nil {
 		log.Fatalf("Failed to create certificate: %s", err)
 	}
@@ -154,7 +154,7 @@ func main() {
 		log.Fatalf("Failed to open key.pem for writing:", err)
 		return
 	}
-	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
+	privBytes, err := gmx509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
 		log.Fatalf("Unable to marshal private key: %v", err)
 	}

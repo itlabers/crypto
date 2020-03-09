@@ -13,7 +13,7 @@ import (
 	"crypto/rc4"
 	"crypto/sha1"
 	"crypto/sha256"
-	"github.com/itlabers/crypto/x509"
+ 	gmx509 "github.com/itlabers/crypto/x509"
 	"golang.org/x/crypto/chacha20poly1305"
 	"hash"
 )
@@ -33,8 +33,8 @@ type keyAgreement interface {
 
 	// This method may not be called if the server doesn't send a
 	// ServerKeyExchange message.
-	processServerKeyExchange(*Config, *clientHelloMsg, *serverHelloMsg, *x509.Certificate, *serverKeyExchangeMsg) error
-	generateClientKeyExchange(*Config, *clientHelloMsg, *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error)
+	processServerKeyExchange(*Config, *clientHelloMsg, *serverHelloMsg, *gmx509.Certificate, *serverKeyExchangeMsg) error
+	generateClientKeyExchange(*Config, *clientHelloMsg, *gmx509.Certificate) ([]byte, *clientKeyExchangeMsg, error)
 }
 
 const (

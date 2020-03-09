@@ -11,7 +11,7 @@ import (
 	"crypto/sha512"
 	"errors"
 	"fmt"
-	"github.com/itlabers/crypto/x509"
+	gmx509 "github.com/itlabers/crypto/x509"
 	"golang.org/x/sys/cpu"
 	"io"
 	"math/big"
@@ -233,8 +233,8 @@ type ConnectionState struct {
 	NegotiatedProtocol          string                // negotiated next protocol (not guaranteed to be from Config.NextProtos)
 	NegotiatedProtocolIsMutual  bool                  // negotiated protocol was advertised by server (client side only)
 	ServerName                  string                // server name requested by client, if any (server side only)
-	PeerCertificates            []*x509.Certificate   // certificate chain presented by remote peer
-	VerifiedChains              [][]*x509.Certificate // verified chains built from PeerCertificates
+	PeerCertificates            []*gmx509.Certificate   // certificate chain presented by remote peer
+	VerifiedChains              [][]*gmx509.Certificate // verified chains built from PeerCertificates
 	SignedCertificateTimestamps [][]byte              // SCTs from the peer, if any
 	OCSPResponse                []byte                // stapled OCSP response from peer, if any
 
@@ -288,8 +288,8 @@ type ClientSessionState struct {
 	vers               uint16                // SSL/TLS version negotiated for the session
 	cipherSuite        uint16                // Ciphersuite negotiated for the session
 	masterSecret       []byte                // Full handshake MasterSecret, or TLS 1.3 resumption_master_secret
-	serverCertificates []*x509.Certificate   // Certificate chain presented by the server
-	verifiedChains     [][]*x509.Certificate // Certificate chains we built for verification
+	serverCertificates []*gmx509.Certificate   // Certificate chain presented by the server
+	verifiedChains     [][]*gmx509.Certificate // Certificate chains we built for verification
 	receivedAt         time.Time             // When the session ticket was received from the server
 
 	// TLS 1.3 fields.
@@ -522,12 +522,12 @@ type Config struct {
 	// setting InsecureSkipVerify, or (for a server) when ClientAuth is
 	// RequestClientCert or RequireAnyClientCert, then this callback will
 	// be considered but the verifiedChains argument will always be nil.
-	VerifyPeerCertificate func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
+	VerifyPeerCertificate func(rawCerts [][]byte, verifiedChains [][]*gmx509.Certificate) error
 
 	// RootCAs defines the set of root certificate authorities
 	// that clients use when verifying server certificates.
 	// If RootCAs is nil, TLS uses the host's root CA set.
-	RootCAs *x509.CertPool
+	RootCAs *gmx509.CertPool
 
 	// NextProtos is a list of supported application level protocols, in
 	// order of preference.
@@ -546,7 +546,7 @@ type Config struct {
 	// ClientCAs defines the set of root certificate authorities
 	// that servers use if required to verify a client certificate
 	// by the policy in ClientAuth.
-	ClientCAs *x509.CertPool
+	ClientCAs *gmx509.CertPool
 
 	// InsecureSkipVerify controls whether a client verifies the
 	// server's certificate chain and host name.
@@ -960,7 +960,7 @@ func (c *Config) BuildNameToCertificate() {
 		x509Cert := cert.Leaf
 		if x509Cert == nil {
 			var err error
-			x509Cert, err = x509.ParseCertificate(cert.Certificate[0])
+			x509Cert, err = gmx509.ParseCertificate(cert.Certificate[0])
 			if err != nil {
 				continue
 			}
@@ -1018,7 +1018,7 @@ type Certificate struct {
 	// initialized using x509.ParseCertificate to reduce per-handshake
 	// processing for TLS clients doing client authentication. If nil, the
 	// leaf certificate will be parsed as needed.
-	Leaf *x509.Certificate
+	Leaf *gmx509.Certificate
 }
 
 type handshakeMessage interface {

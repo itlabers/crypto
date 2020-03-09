@@ -6,7 +6,8 @@ package tls_test
 
 import (
 	"crypto/tls"
-	"crypto/x509"
+	gmtls "github.com/itlabers/crypto/tls"
+ 	gmx509 "github.com/itlabers/crypto/x509"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -57,13 +58,13 @@ yuGnBXj8ytqU0CwIPX4WecigUCAkVDNx
 	// First, create the set of root certificates. For this example we only
 	// have one. It's also possible to omit this in order to use the
 	// default root set of the current operating system.
-	roots := x509.NewCertPool()
+	roots := gmx509.NewCertPool()
 	ok := roots.AppendCertsFromPEM([]byte(rootPEM))
 	if !ok {
 		panic("failed to parse root certificate")
 	}
 
-	conn, err := tls.Dial("tcp", "mail.google.com:443", &tls.Config{
+	conn, err := gmtls.Dial("tcp", "mail.google.com:443", &gmtls.Config{
 		RootCAs: roots,
 	})
 	if err != nil {
@@ -81,24 +82,24 @@ func ExampleConfig_keyLogWriter() {
 	// Dummy test HTTP server for the example with insecure random so output is
 	// reproducible.
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	server.TLS = &tls.Config{
+	/*server.TLS = &gmtls.Config{
 		Rand: zeroSource{}, // for example only; don't do this.
-	}
+	}*/
 	server.StartTLS()
 	defer server.Close()
 
 	// Typically the log would go to an open file:
 	// w, err := os.OpenFile("tls-secrets.txt", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	w := os.Stdout
+	_= os.Stdout
 
 	client := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
+			/*TLSClientConfig: &gmtls.Config{
 				KeyLogWriter: w,
 
 				Rand:               zeroSource{}, // for reproducible output; don't do this.
 				InsecureSkipVerify: true,         // test server certificate is not trusted.
-			},
+			},*/
 		},
 	}
 	resp, err := client.Get(server.URL)
@@ -142,12 +143,12 @@ MHcCAQEEIIrYSSNQFaA2Hwf1duRSxKtLYX5CB04fSeQ6tF1aY/PuoAoGCCqGSM49
 AwEHoUQDQgAEPR3tU2Fta9ktY+6P9G0cWO+0kETA6SFs38GecTyudlHz6xvCdz8q
 EKTcWGekdmdDPsHloRNtsiCa697B2O9IFA==
 -----END EC PRIVATE KEY-----`)
-	cert, err := tls.X509KeyPair(certPem, keyPem)
+	cert, err := gmtls.X509KeyPair(certPem, keyPem)
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfg := &tls.Config{Certificates: []tls.Certificate{cert}}
-	listener, err := tls.Listen("tcp", ":2000", cfg)
+	cfg := &gmtls.Config{Certificates: []gmtls.Certificate{cert}}
+	listener, err := gmtls.Listen("tcp", ":2000", cfg)
 	if err != nil {
 		log.Fatal(err)
 	}

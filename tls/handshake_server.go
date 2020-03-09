@@ -10,10 +10,10 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/subtle"
-	"errors"
+ 	"errors"
 	"fmt"
 	"github.com/itlabers/crypto/sm/sm2"
-	"github.com/itlabers/crypto/x509"
+	gmx509 "github.com/itlabers/crypto/x509"
 	"io"
 	"sync/atomic"
 )
@@ -714,10 +714,10 @@ func (hs *serverHandshakeState) sendFinished(out []byte) error {
 // the public key of the leaf certificate.
 func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	certificates := certificate.Certificate
-	certs := make([]*x509.Certificate, len(certificates))
+	certs := make([]*gmx509.Certificate, len(certificates))
 	var err error
 	for i, asn1Data := range certificates {
-		if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
+		if certs[i], err = gmx509.ParseCertificate(asn1Data); err != nil {
 			c.sendAlert(alertBadCertificate)
 			return errors.New("tls: failed to parse client certificate: " + err.Error())
 		}
@@ -729,11 +729,11 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	}
 
 	if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
-		opts := x509.VerifyOptions{
+		opts := gmx509.VerifyOptions{
 			Roots:         c.config.ClientCAs,
 			CurrentTime:   c.config.time(),
-			Intermediates: x509.NewCertPool(),
-			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+			Intermediates: gmx509.NewCertPool(),
+			KeyUsages:     []gmx509.ExtKeyUsage{gmx509.ExtKeyUsageClientAuth},
 		}
 
 		for _, cert := range certs[1:] {
