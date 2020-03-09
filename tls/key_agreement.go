@@ -118,6 +118,9 @@ func md5SHA1Hash(slices [][]byte) []byte {
 // the sigType (for earlier TLS versions). For Ed25519 signatures, which don't
 // do pre-hashing, it returns the concatenation of the slices.
 func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint16, slices ...[]byte) []byte {
+	if hashFunc == x509.SM3 {
+		return sm3Hash(slices)
+	}
 	if sigType == signatureEd25519 {
 		var signed []byte
 		for _, slice := range slices {
