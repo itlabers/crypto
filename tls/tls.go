@@ -21,7 +21,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
-	"crypto/tls"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -184,14 +183,14 @@ func Dial(network, addr string, config *Config) (*Conn, error) {
 // may contain intermediate certificates following the leaf certificate to
 // form a certificate chain. On successful return, Certificate.Leaf will
 // be nil because the parsed form of the certificate is not retained.
-func LoadX509KeyPair(certFile, keyFile string) (tls.Certificate, error) {
+func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
 	certPEMBlock, err := ioutil.ReadFile(certFile)
 	if err != nil {
-		return tls.Certificate{}, err
+		return Certificate{}, err
 	}
 	keyPEMBlock, err := ioutil.ReadFile(keyFile)
 	if err != nil {
-		return tls.Certificate{}, err
+		return Certificate{}, err
 	}
 	return X509KeyPair(certPEMBlock, keyPEMBlock)
 }
@@ -199,9 +198,9 @@ func LoadX509KeyPair(certFile, keyFile string) (tls.Certificate, error) {
 // X509KeyPair parses a public/private key pair from a pair of
 // PEM encoded data. On successful return, Certificate.Leaf will be nil because
 // the parsed form of the certificate is not retained.
-func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (tls.Certificate, error) {
-	fail := func(err error) (tls.Certificate, error) { return tls.Certificate{}, err }
-	var cert tls.Certificate
+func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
+	fail := func(err error) (Certificate, error) { return Certificate{}, err }
+	var cert Certificate
 	var skippedBlockTypes []string
 	for {
 		var certDERBlock *pem.Block
