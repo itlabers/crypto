@@ -31,7 +31,14 @@ import (
 // The returned SignatureScheme codepoint is only meaningful for TLS 1.2,
 // previous TLS versions have a fixed hash function.
 func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []SignatureScheme, tlsVersion uint16) (sigAlg SignatureScheme, sigType uint8, hashFunc crypto.Hash, err error) {
-	log.Printf("tlsVersion  %v peerSigAlgs：%v ,ourSigAlgs:%v, KeyType: %v  ", tlsVersion,peerSigAlgs, ourSigAlgs,reflect.TypeOf(pubkey))
+	log.Printf("tlsVersion  %v peerSigAlgs：%v ,ourSigAlgs:%v, KeyType: %v  ", tlsVersion, peerSigAlgs, ourSigAlgs, reflect.TypeOf(pubkey))
+
+	for _, v := range peerSigAlgs {
+		log.Printf("peerSigAlgs item %x", v)
+	}
+	for _, v := range ourSigAlgs {
+		log.Printf("ourSigAlgs item %x", v)
+	}
 
 	if tlsVersion < VersionTLS12 || len(peerSigAlgs) == 0 {
 		// For TLS 1.1 and before, the signature algorithm could not be

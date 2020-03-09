@@ -10,11 +10,13 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/subtle"
- 	"errors"
+	"errors"
 	"fmt"
 	"github.com/itlabers/crypto/sm/sm2"
 	gmx509 "github.com/itlabers/crypto/x509"
 	"io"
+	"log"
+	"reflect"
 	"sync/atomic"
 )
 
@@ -759,9 +761,9 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	if len(certs) == 0 {
 		return nil
 	}
-
+	log.Printf("PublicKey type : %v ", reflect.TypeOf(certs[0].PublicKey))
 	switch certs[0].PublicKey.(type) {
-	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey,*sm2.PublicKey:
+	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey, sm2.PublicKey:
 	default:
 		c.sendAlert(alertUnsupportedCertificate)
 		return fmt.Errorf("tls: client's certificate contains an unsupported public key of type %T", certs[0].PublicKey)
