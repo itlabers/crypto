@@ -31,7 +31,7 @@ import (
 // The returned SignatureScheme codepoint is only meaningful for TLS 1.2,
 // previous TLS versions have a fixed hash function.
 func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []SignatureScheme, tlsVersion uint16) (sigAlg SignatureScheme, sigType uint8, hashFunc crypto.Hash, err error) {
-	log.Printf("tlsVersion  %v peerSigAlgs：%v ,ourSigAlgs:%v, KeyType: %v  ", tlsVersion, peerSigAlgs, ourSigAlgs, reflect.TypeOf(pubkey))
+	log.Printf("tlsVersion  %v KeyType: %v  ", tlsVersion, reflect.TypeOf(pubkey))
 
 	for _, v := range peerSigAlgs {
 		log.Printf("peerSigAlgs item %x", v)
@@ -94,9 +94,7 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 				return sigAlg, sigType, hashAlg, nil
 			}
 		case sm2.PublicKey:
-			if sigType == signatureSM2withSm3 {
-				return sigAlg, sigType, hashAlg, nil
-			}
+			return SM2WithSM3, signatureSM2withSm3, gmx509.SM3, nil
 		case ed25519.PublicKey:
 			if sigType == signatureEd25519 {
 				return sigAlg, sigType, hashAlg, nil
