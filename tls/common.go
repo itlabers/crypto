@@ -342,7 +342,8 @@ const (
 	PKCS1WithSHA1 SignatureScheme = 0x0201
 	ECDSAWithSHA1 SignatureScheme = 0x0203
 
-	SM2WithSM3 SignatureScheme = 0x0303
+	//gmssl 推荐
+	SM2WithSM3 SignatureScheme = 0xE013
 )
 
 // ClientHelloInfo contains information from a ClientHello message in order to

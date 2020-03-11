@@ -139,9 +139,6 @@ func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint1
 	if sigType == signatureECDSA {
 		return sha1Hash(slices)
 	}
-	if sigType == signatureSM2withSm3 {
-		return sm3Hash(slices)
-	}
 	return md5SHA1Hash(slices)
 }
 
