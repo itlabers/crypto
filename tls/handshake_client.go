@@ -905,7 +905,7 @@ func certificateRequestInfoFromMsg(certReq *certificateRequestMsg) *CertificateR
 	cri.SignatureSchemes = make([]SignatureScheme, 0, len(certReq.supportedSignatureAlgorithms))
 	for _, sigScheme := range certReq.supportedSignatureAlgorithms {
 		switch signatureFromSignatureScheme(sigScheme) {
-		case signatureECDSA, signatureEd25519, signatureSM2withSm3:
+		case signatureECDSA, signatureEd25519:
 			if ecAvail {
 				cri.SignatureSchemes = append(cri.SignatureSchemes, sigScheme)
 			}

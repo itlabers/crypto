@@ -19,6 +19,8 @@ func TestRoundUp(t *testing.T) {
 		roundUp(17, 16) != 32 {
 		t.Error("roundUp broken")
 	}
+	t.Logf("%x", 0x0401)
+
 }
 
 // will be initialized with {0, 255, 255, ..., 255}

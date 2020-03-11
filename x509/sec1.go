@@ -10,7 +10,7 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
-	sm "github.com/itlabers/crypto/sm/sm2"
+	"github.com/itlabers/crypto/sm/sm2"
 	"math/big"
 )
 
@@ -28,6 +28,7 @@ type ecPrivateKey struct {
 	NamedCurveOID asn1.ObjectIdentifier `asn1:"optional,explicit,tag:0"`
 	PublicKey     asn1.BitString        `asn1:"optional,explicit,tag:1"`
 }
+type smPrivateKey ecPrivateKey
 
 // ParseECPrivateKey parses an ASN.1 Elliptic Curve Private Key Structure.
 func ParseECPrivateKey(der []byte) (interface{}, error) {
@@ -46,7 +47,7 @@ func MarshalECPrivateKey(key interface{}) ([]byte, error) {
 		curve = key.Curve
 		x = key.X
 		y = key.Y
-	case *sm.PrivateKey:
+	case *sm2.PrivateKey:
 		privateKeyBytes = key.D.Bytes()
 		curve = key.Curve
 		x = key.X
@@ -91,7 +92,6 @@ func parseECPrivateKey(namedCurveOID *asn1.ObjectIdentifier, der []byte) (key in
 	if curve == nil {
 		return nil, errors.New("x509: unknown elliptic curve")
 	}
-
 	k := new(big.Int).SetBytes(privKey.PrivateKey)
 	curveOrder := curve.Params().N
 	if k.Cmp(curveOrder) >= 0 {
@@ -99,16 +99,15 @@ func parseECPrivateKey(namedCurveOID *asn1.ObjectIdentifier, der []byte) (key in
 	}
 
 	switch curve {
-	case sm.P256Sm2():
+	case sm2.P256Sm2():
 		k := new(big.Int).SetBytes(privKey.PrivateKey)
 		curveOrder := curve.Params().N
 		if k.Cmp(curveOrder) >= 0 {
 			return nil, errors.New("x509: invalid elliptic curve private key value")
 		}
-		priv := new(sm.PrivateKey)
+		priv := new(sm2.PrivateKey)
 		priv.Curve = curve
 		priv.D = k
-
 		privateKey := make([]byte, (curveOrder.BitLen()+7)/8)
 
 		// Some private keys have leading zero padding. This is invalid
@@ -159,4 +158,28 @@ func parseECPrivateKey(namedCurveOID *asn1.ObjectIdentifier, der []byte) (key in
 	default:
 		return nil, errors.New("x509: invalid private key curve param")
 	}
+}
+func marshalECPrivateKeyWithOID(key *ecdsa.PrivateKey, oid asn1.ObjectIdentifier) ([]byte, error) {
+	privateKeyBytes := key.D.Bytes()
+	paddedPrivateKey := make([]byte, (key.Curve.Params().N.BitLen()+7)/8)
+	copy(paddedPrivateKey[len(paddedPrivateKey)-len(privateKeyBytes):], privateKeyBytes)
+
+	return asn1.Marshal(ecPrivateKey{
+		Version:       1,
+		PrivateKey:    paddedPrivateKey,
+		NamedCurveOID: oid,
+		PublicKey:     asn1.BitString{Bytes: elliptic.Marshal(key.Curve, key.X, key.Y)},
+	})
+}
+func marshalSMPrivateKeyWithOID(key *sm2.PrivateKey, oid asn1.ObjectIdentifier) ([]byte, error) {
+	privateKeyBytes := key.D.Bytes()
+	paddedPrivateKey := make([]byte, (key.Curve.Params().N.BitLen()+7)/8)
+	copy(paddedPrivateKey[len(paddedPrivateKey)-len(privateKeyBytes):], privateKeyBytes)
+
+	return asn1.Marshal(smPrivateKey{
+		Version:       1,
+		PrivateKey:    paddedPrivateKey,
+		NamedCurveOID: oid,
+		PublicKey:     asn1.BitString{Bytes: elliptic.Marshal(key.Curve, key.X, key.Y)},
+	})
 }

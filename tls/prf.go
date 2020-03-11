@@ -129,9 +129,6 @@ func prfAndHashForVersion(version uint16, suite *cipherSuite) (func(result, secr
 		if suite.flags&suiteSHA384 != 0 {
 			return prf12(sha512.New384), crypto.SHA384
 		}
-		if suite.flags&suiteSM3 != 0 {
-			return prf12(sm3.New), x509.SM3
-		}
 		return prf12(sha256.New), crypto.SHA256
 	default:
 		panic("unknown version")
@@ -320,6 +317,11 @@ func (h finishedHash) serverSum(masterSecret []byte) []byte {
 // hashForClientCertificate returns the handshake messages so far, pre-hashed if
 // necessary, suitable for signing by a TLS client certificate.
 func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) ([]byte, error) {
+	if hashAlg == x509.SM3 {
+		hash := sm3.New()
+		hash.Write(h.buffer)
+		return hash.Sum(nil), nil
+	}
 	if (h.version == VersionSSL30 || h.version >= VersionTLS12 || sigType == signatureEd25519) && h.buffer == nil {
 		panic("tls: handshake hash for a client certificate requested after discarding the handshake buffer")
 	}
@@ -340,13 +342,12 @@ func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Has
 		return h.buffer, nil
 	}
 
-	if h.version >= VersionTLS12 || sigType == signatureSM2withSm3 {
+	if h.version >= VersionTLS12 {
 		hash := hashAlg.New()
 		hash.Write(h.buffer)
 		return hash.Sum(nil), nil
 	}
-
-	if sigType == signatureECDSA || sigType == signatureSM2withSm3 {
+	if sigType == signatureECDSA {
 		return h.server.Sum(nil), nil
 	}
 

@@ -163,7 +163,6 @@ const (
 	signatureRSAPSS
 	signatureECDSA
 	signatureEd25519
-	signatureSM2withSm3
 )
 
 // directSigning is a standard Hash value that signals that no pre-hashing
@@ -226,17 +225,17 @@ const (
 
 // ConnectionState records basic TLS details about the connection.
 type ConnectionState struct {
-	Version                     uint16                // TLS version used by the connection (e.g. VersionTLS12)
-	HandshakeComplete           bool                  // TLS handshake is complete
-	DidResume                   bool                  // connection resumes a previous TLS connection
-	CipherSuite                 uint16                // cipher suite in use (TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, ...)
-	NegotiatedProtocol          string                // negotiated next protocol (not guaranteed to be from Config.NextProtos)
-	NegotiatedProtocolIsMutual  bool                  // negotiated protocol was advertised by server (client side only)
-	ServerName                  string                // server name requested by client, if any (server side only)
+	Version                     uint16                  // TLS version used by the connection (e.g. VersionTLS12)
+	HandshakeComplete           bool                    // TLS handshake is complete
+	DidResume                   bool                    // connection resumes a previous TLS connection
+	CipherSuite                 uint16                  // cipher suite in use (TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, ...)
+	NegotiatedProtocol          string                  // negotiated next protocol (not guaranteed to be from Config.NextProtos)
+	NegotiatedProtocolIsMutual  bool                    // negotiated protocol was advertised by server (client side only)
+	ServerName                  string                  // server name requested by client, if any (server side only)
 	PeerCertificates            []*gmx509.Certificate   // certificate chain presented by remote peer
 	VerifiedChains              [][]*gmx509.Certificate // verified chains built from PeerCertificates
-	SignedCertificateTimestamps [][]byte              // SCTs from the peer, if any
-	OCSPResponse                []byte                // stapled OCSP response from peer, if any
+	SignedCertificateTimestamps [][]byte                // SCTs from the peer, if any
+	OCSPResponse                []byte                  // stapled OCSP response from peer, if any
 
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
@@ -284,13 +283,13 @@ func requiresClientCert(c ClientAuthType) bool {
 // ClientSessionState contains the state needed by clients to resume TLS
 // sessions.
 type ClientSessionState struct {
-	sessionTicket      []uint8               // Encrypted ticket used for session resumption with server
-	vers               uint16                // SSL/TLS version negotiated for the session
-	cipherSuite        uint16                // Ciphersuite negotiated for the session
-	masterSecret       []byte                // Full handshake MasterSecret, or TLS 1.3 resumption_master_secret
+	sessionTicket      []uint8                 // Encrypted ticket used for session resumption with server
+	vers               uint16                  // SSL/TLS version negotiated for the session
+	cipherSuite        uint16                  // Ciphersuite negotiated for the session
+	masterSecret       []byte                  // Full handshake MasterSecret, or TLS 1.3 resumption_master_secret
 	serverCertificates []*gmx509.Certificate   // Certificate chain presented by the server
 	verifiedChains     [][]*gmx509.Certificate // Certificate chains we built for verification
-	receivedAt         time.Time             // When the session ticket was received from the server
+	receivedAt         time.Time               // When the session ticket was received from the server
 
 	// TLS 1.3 fields.
 	nonce  []byte    // Ticket nonce sent by the server, to derive PSK
@@ -883,7 +882,7 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
 	return versions
 }
 
-var defaultCurvePreferences = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
+var defaultCurvePreferences = []CurveID{X25519, CurveP256, CurveP384, CurveP521, SM2P256V1}
 
 func (c *Config) curvePreferences() []CurveID {
 	if c == nil || len(c.CurvePreferences) == 0 {
@@ -1222,8 +1221,6 @@ func signatureFromSignatureScheme(signatureAlgorithm SignatureScheme) uint8 {
 		return signatureECDSA
 	case Ed25519:
 		return signatureEd25519
-	case SM2WithSM3:
-		return signatureSM2withSm3
 	default:
 		return 0
 	}

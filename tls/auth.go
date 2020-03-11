@@ -18,9 +18,7 @@ import (
 	gmx509 "github.com/itlabers/crypto/x509"
 	"hash"
 	"io"
-	"log"
 	"math/big"
-	"reflect"
 )
 
 // pickSignatureAlgorithm selects a signature algorithm that is compatible with
@@ -31,15 +29,6 @@ import (
 // The returned SignatureScheme codepoint is only meaningful for TLS 1.2,
 // previous TLS versions have a fixed hash function.
 func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []SignatureScheme, tlsVersion uint16) (sigAlg SignatureScheme, sigType uint8, hashFunc crypto.Hash, err error) {
-	log.Printf("tlsVersion  %v KeyType: %v  ", tlsVersion, reflect.TypeOf(pubkey))
-
-	for _, v := range peerSigAlgs {
-		log.Printf("peerSigAlgs item %x", v)
-	}
-	for _, v := range ourSigAlgs {
-		log.Printf("ourSigAlgs item %x", v)
-	}
-
 	if tlsVersion < VersionTLS12 || len(peerSigAlgs) == 0 {
 		// For TLS 1.1 and before, the signature algorithm could not be
 		// negotiated and the hash is fixed based on the signature type. For TLS
@@ -56,12 +45,12 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 			{
 				publicKey := pubkey.(*ecdsa.PublicKey)
 				if publicKey.Curve == sm2.P256Sm2() {
-					return SM2WithSM3, signatureSM2withSm3, gmx509.SM3, nil
+					return SM2WithSM3, signatureECDSA, gmx509.SM3, nil
 				}
 				return ECDSAWithSHA1, signatureECDSA, crypto.SHA1, nil
 			}
 		case *sm2.PublicKey:
-			return SM2WithSM3, signatureSM2withSm3, gmx509.SM3, nil
+			return SM2WithSM3, signatureECDSA, gmx509.SM3, nil
 		case ed25519.PublicKey:
 			if tlsVersion < VersionTLS12 {
 				// RFC 8422 specifies support for Ed25519 in TLS 1.0 and 1.1,
@@ -90,11 +79,11 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 				return sigAlg, sigType, hashAlg, nil
 			}
 		case *ecdsa.PublicKey:
-			if sigType == signatureECDSA || sigType == signatureSM2withSm3 {
+			if sigType == signatureECDSA {
 				return sigAlg, sigType, hashAlg, nil
 			}
 		case *sm2.PublicKey:
-			return SM2WithSM3, signatureSM2withSm3, gmx509.SM3, nil
+			return SM2WithSM3, signatureECDSA, gmx509.SM3, nil
 		case ed25519.PublicKey:
 			if sigType == signatureEd25519 {
 				return sigAlg, sigType, hashAlg, nil
@@ -111,37 +100,44 @@ func pickSignatureAlgorithm(pubkey crypto.PublicKey, peerSigAlgs, ourSigAlgs []S
 func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc crypto.Hash, signed, sig []byte) error {
 	switch sigType {
 	case signatureECDSA:
-		pubKey, ok := pubkey.(*ecdsa.PublicKey)
-		if !ok {
-			return errors.New("tls: ECDSA signing requires a ECDSA public key")
-		}
-		ecdsaSig := new(ecdsaSignature)
-		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
-			return err
-		}
-		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
-			return errors.New("tls: ECDSA signature contained zero or negative values")
-		}
-		if !ecdsa.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
-			return errors.New("tls: ECDSA verification failure")
-		}
-	case signatureSM2withSm3:
-		pubKey, ok := pubkey.(*sm2.PublicKey)
-		if !ok {
-			return errors.New("tls: sm2 signing requires a sm2 public key")
-		}
-		type sm2Signature struct {
-			R, S *big.Int
-		}
-		sm2Sig := new(sm2Signature)
-		if _, err := asn1.Unmarshal(sig, sm2Sig); err != nil {
-			return err
-		}
-		if sm2Sig.R.Sign() <= 0 || sm2Sig.S.Sign() <= 0 {
-			return errors.New("tls: sm2 signature contained zero or negative values")
-		}
-		if !sm2.Verify(pubKey, signed, sm2Sig.R, sm2Sig.S) {
-			return errors.New("tls: sm2 verification failure")
+		switch pubkey.(type) {
+		case *ecdsa.PublicKey:
+			{
+				pubKey, ok := pubkey.(*ecdsa.PublicKey)
+				if !ok {
+					return errors.New("tls: ECDSA signing requires a ECDSA public key")
+				}
+				ecdsaSig := new(ecdsaSignature)
+				if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
+					return err
+				}
+				if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+					return errors.New("tls: ECDSA signature contained zero or negative values")
+				}
+				if !ecdsa.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
+					return errors.New("tls: ECDSA verification failure")
+				}
+			}
+		case *sm2.PublicKey:
+			{
+				pubKey, ok := pubkey.(*sm2.PublicKey)
+				if !ok {
+					return errors.New("tls: sm2 signing requires a sm2 public key")
+				}
+				type sm2Signature struct {
+					R, S *big.Int
+				}
+				sm2Sig := new(sm2Signature)
+				if _, err := asn1.Unmarshal(sig, sm2Sig); err != nil {
+					return err
+				}
+				if sm2Sig.R.Sign() <= 0 || sm2Sig.S.Sign() <= 0 {
+					return errors.New("tls: sm2 signature contained zero or negative values")
+				}
+				if !sm2.Verify(pubKey, signed, sm2Sig.R, sm2Sig.S) {
+					return errors.New("tls: sm2 verification failure")
+				}
+			}
 		}
 	case signatureEd25519:
 		pubKey, ok := pubkey.(ed25519.PublicKey)

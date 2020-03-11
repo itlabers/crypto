@@ -7,7 +7,6 @@ package tls
 import (
 	"bytes"
 	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/pem"
@@ -790,6 +789,32 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 func TestHandshakeClientCertECDSA(t *testing.T) {
 	config := testConfig.Clone()
 	cert, _ := X509KeyPair([]byte(clientECDSACertificatePEM), []byte(clientECDSAKeyPEM))
+	config.Certificates = []Certificate{cert}
+
+	test := &clientTest{
+		name:   "ClientCert-ECDSA-RSA",
+		args:   []string{"-cipher", "AES128", "-Verify", "1"},
+		config: config,
+	}
+
+	runClientTestTLS10(t, test)
+	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
+
+	test = &clientTest{
+		name:   "ClientCert-ECDSA-ECDSA",
+		args:   []string{"-cipher", "ECDHE-ECDSA-AES128-SHA", "-Verify", "1"},
+		config: config,
+		cert:   testECDSACertificate,
+		key:    testECDSAPrivateKey,
+	}
+
+	runClientTestTLS10(t, test)
+	runClientTestTLS12(t, test)
+}
+func TestHandshakeClientCertSM(t *testing.T) {
+	config := testConfig.Clone()
+	cert, _ := X509KeyPair([]byte(clientSMCertificatePEM), []byte(clientSMKeyPEM))
 	config.Certificates = []Certificate{cert}
 
 	test := &clientTest{
@@ -1975,7 +2000,7 @@ RwBA9Xk1KBNF
 	if b == nil {
 		t.Fatal("Failed to decode certificate")
 	}
-	cert, err := x509.ParseCertificate(b.Bytes)
+	cert, err := gmx509.ParseCertificate(b.Bytes)
 	if err != nil {
 		return
 	}

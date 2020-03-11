@@ -11,6 +11,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
 	"crypto/x509/pkix"
@@ -19,8 +20,12 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"github.com/itlabers/crypto/sm/sm2"
+	"io/ioutil"
 	"math/big"
 	"net"
+	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -49,6 +54,95 @@ func TestParsePKCS1PrivateKey(t *testing.T) {
 	if _, err := ParsePKCS1PrivateKey(data); err == nil {
 		t.Errorf("parsing invalid private key did not result in an error")
 	}
+}
+
+var msg = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+
+func TestParsePKCS8PrivateKey(t *testing.T) {
+
+	block, _ := pem.Decode([]byte(sm2pemPrivateKey))
+	key, err := ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		t.Errorf("Failed to parse private key: %s", err)
+		return
+	} else {
+		t.Logf("%v", key)
+	}
+	hfunc := sha256.New()
+	hfunc.Write(msg)
+	hash := hfunc.Sum(nil)
+	priv := key.(*sm2.PrivateKey)
+	r, s, err := sm2.Sign(rand.Reader, priv, hash)
+	if err != nil {
+		panic(err)
+	}
+
+	ret := sm2.Verify(&priv.PublicKey, hash, r, s)
+	fmt.Println(ret)
+}
+func TestMarshalPKCS8PrivateKey(t *testing.T) {
+	priv, _ := sm2.GenerateKey(rand.Reader)
+	encoded, _ := MarshalPKCS8PrivateKey(priv)
+	pwd, _ := os.Getwd()
+	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: encoded})
+	keyFile := filepath.Join(pwd, "sm2.key")
+	_ = ioutil.WriteFile(keyFile, pemEncoded, 0600)
+
+}
+func TestParseSMPKIXPublicKey(t *testing.T) {
+	block, _ := pem.Decode([]byte(sm2pemPublicKey))
+	pub, err := ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		t.Errorf("Failed to parse RSA public key: %s", err)
+		return
+	}
+	sm2pubKey, ok := pub.(*sm2.PublicKey)
+	if !ok {
+		t.Errorf("Value returned from ParsePKIXPublicKey was not an SM2 public key")
+		return
+	}
+
+	pubBytes2, err := MarshalPKIXPublicKey(sm2pubKey)
+	if err != nil {
+		t.Errorf("Failed to marshal RSA public key for the second time: %s", err)
+		return
+	}
+	if !bytes.Equal(pubBytes2, block.Bytes) {
+		t.Errorf("Reserialization of public key didn't match. got %x, want %x", pubBytes2, block.Bytes)
+	}
+}
+
+func TestParseCertificate(t *testing.T) {
+	block, _ := pem.Decode([]byte(certPEM))
+	if block == nil {
+		panic("failed to parse certificate PEM")
+	}
+	cert, err := ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Errorf("Failed to marshal RSA public key for the second time: %s", err)
+		return
+	} else {
+		t.Logf("cert :%v", cert)
+	}
+	priBlock, _ := pem.Decode([]byte(sm2pemPrivateKey))
+	key, err := ParsePKCS8PrivateKey(priBlock.Bytes)
+	if err != nil {
+		t.Errorf("Failed to marshal sm2 public key for the second time: %s", err)
+		return
+	} else {
+		t.Logf("cert :%v", cert)
+	}
+	hfunc := sha256.New()
+	hfunc.Write(msg)
+	hash := hfunc.Sum(nil)
+	priv := key.(*sm2.PrivateKey)
+	r, s, err := sm2.Sign(rand.Reader, priv, hash)
+	if err != nil {
+		panic(err)
+	}
+
+	ret := sm2.Verify(cert.PublicKey.(*sm2.PublicKey), hash, r, s)
+	fmt.Println(ret)
 }
 
 func TestParsePKIXPublicKey(t *testing.T) {
@@ -101,6 +195,35 @@ AAA7eoZ9AEHflUeuLn9QJI/r0hyQQLEtrpwv6rDT1GCWaLII5HJ6NUFVf4TTcqxo
 6vdM4QGKTJoO+SaCyP0CQFdpcxSAuzpFcKv0IlJ8XzS/cy+mweCMwyJ1PFEc4FX6
 wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
 -----END RSA PRIVATE KEY-----
+`
+
+var sm2pemPrivateKey = `
+-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqBHM9VAYItBG0wawIBAQQggsuXkQTgzl+TuYRP
+RrK/Xp+1wQVhtzRWPNiTKo3YK2KhRANCAARZwYxDWnsscqgpQrLwwluJ3tHi1QYD
+q01OsNBQopYt6AfNHwFrl8TH6N9cQq9mZCUiPx+1XLNoRGz/DdQxtFun
+-----END PRIVATE KEY-----
+`
+var sm2pemPublicKey = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEWcGMQ1p7LHKoKUKy8MJbid7R4tUG
+A6tNTrDQUKKWLegHzR8Ba5fEx+jfXEKvZmQlIj8ftVyzaERs/w3UMbRbpw==
+-----END PUBLIC KEY-----
+`
+var certPEM = `
+-----BEGIN CERTIFICATE-----
+MIICATCCAacCFG20g4/wR3rR61O92HI/pSTsqNwHMAoGCCqGSM49BAMCMIGCMQsw
+CQYDVQQGEwJDTjETMBEGA1UECAwKR3VhbmcgWmhvdTELMAkGA1UEBwwCR1oxDTAL
+BgNVBAoMBFJvb3QxEjAQBgNVBAsMCVJvb3QgU2lnbjEPMA0GA1UEAwwGUm9vdENB
+MR0wGwYJKoZIhvcNAQkBFg5Sb290QGdtYWlsLmNvbTAeFw0yMDAzMTEwMjQzMjNa
+Fw0zMDAzMDkwMjQzMjNaMIGCMQswCQYDVQQGEwJDTjETMBEGA1UECAwKR3Vhbmcg
+WmhvdTELMAkGA1UEBwwCR1oxDTALBgNVBAoMBFJvb3QxEjAQBgNVBAsMCVJvb3Qg
+U2lnbjEPMA0GA1UEAwwGUm9vdENBMR0wGwYJKoZIhvcNAQkBFg5Sb290QGdtYWls
+LmNvbTBZMBMGByqGSM49AgEGCCqBHM9VAYItA0IABFnBjENaeyxyqClCsvDCW4ne
+0eLVBgOrTU6w0FCili3oB80fAWuXxMfo31xCr2ZkJSI/H7Vcs2hEbP8N1DG0W6cw
+CgYIKoZIzj0EAwIDSAAwRQIhAObsmXVeS4NuFE694Ir2PIIRhjFfQTbUZElAA10Z
+CO90AiB3uuMRIBNb8C0NbWkexZ1K10x69zLhfK8JcdWk4e4K5A==
+-----END CERTIFICATE-----
 `
 
 var testPrivateKey *rsa.PrivateKey

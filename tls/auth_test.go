@@ -15,12 +15,13 @@ import (
 	"testing"
 )
 
-const  pemPrivateKey  = `-----BEGIN PRIVATE KEY-----
+const pemPrivateKey = `-----BEGIN PRIVATE KEY-----
 MHcCAQEEIAXi1kJW4CXSYA5drjlzXqtNokedNL1KQZg0FZ6+1eJAoAoGCCqBHM9V
 AYItoUQDQgAEaKv+ycIvC9GMbd6GqhQjo/ixmQ2ucrlray53GepZQeWCjtW0LQVP
 BXfgXzKG+kJ9Hhx+ZX6/PhDpi5jbikxX+g==
 -----END PRIVATE KEY-----
 `
+
 func TestSignatureSelection(t *testing.T) {
 	rsaCert := &testRSAPrivateKey.PublicKey
 	ecdsaCert := &testECDSAPrivateKey.(*ecdsa.PrivateKey).PublicKey
@@ -36,7 +37,7 @@ func TestSignatureSelection(t *testing.T) {
 		panic("Failed to parse private key: " + err.Error())
 	}
 	sm2Cert := sm2Priv.(*sm2.PrivateKey).PublicKey
-     t.Logf("rsaPriv:%v ", sm2Priv)
+	t.Logf("rsaPriv:%v ", sm2Priv)
 	tests := []struct {
 		pubkey      crypto.PublicKey
 		peerSigAlgs []SignatureScheme
@@ -47,7 +48,7 @@ func TestSignatureSelection(t *testing.T) {
 		expectedSigType uint8
 		expectedHash    crypto.Hash
 	}{
-		{sm2Cert, nil, nil, VersionTLS12, SM2WithSM3, signatureSM2withSm3, gmx509.SM3},
+		{sm2Cert, []SignatureScheme{2052, 1027, 2055, 2053, 2054, 1025, 1281, 1537, 1283, 1539, 513, 515}, []SignatureScheme{1025, 1027, 2055, 1281, 1537, 1283, 1539, 513, 515, 771}, VersionTLS12, SM2WithSM3, signatureECDSA, gmx509.SM3},
 		// Hash is fixed for RSA in TLS 1.1 and before.
 		// https://tools.ietf.org/html/rfc4346#page-44
 		//{rsaCert, nil, nil, VersionTLS11, 0, signaturePKCS1v15, crypto.MD5SHA1},

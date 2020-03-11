@@ -7,7 +7,6 @@ package tls
 import (
 	"bytes"
 	"crypto"
-	"crypto/elliptic"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -249,7 +248,7 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 			TLS_RSA_WITH_RC4_128_SHA,
 		},
 		compressionMethods: []uint8{compressionNone},
-		supportedCurves:    []CurveID{CurveP256, CurveP384, CurveP521},
+		supportedCurves:    []CurveID{CurveP256, CurveP384, CurveP521, SM2P256V1},
 		supportedPoints:    []uint8{pointFormatUncompressed},
 	}
 
@@ -1255,9 +1254,9 @@ func BenchmarkHandshakeServer(b *testing.B) {
 		})
 	})
 	b.Run("ECDHE-P521-ECDSA-P521", func(b *testing.B) {
-		if testECDSAPrivateKey.PublicKey.Curve != elliptic.P521() {
+		/*if testECDSAPrivateKey.PublicKey.Curve != elliptic.P521() {
 			b.Fatal("test ECDSA key doesn't use curve P-521")
-		}
+		}*/
 		b.Run("TLSv13", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS13, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 				CurveP521, testECDSACertificate, testECDSAPrivateKey)
