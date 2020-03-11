@@ -21,6 +21,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/itlabers/crypto/sm/sm3"
 	"hash"
 	"io"
 	"math/big"
@@ -864,10 +865,9 @@ func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature 
 // a crypto.PublicKey.
 func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey) (err error) {
 	var hashType crypto.Hash
-
 	switch algo {
 	case SM2WithSM3:
-		hashType = 255
+		hashType = SM3
 	case SHA1WithRSA, DSAWithSHA1, ECDSAWithSHA1, SM2WithSHA1:
 		hashType = crypto.SHA1
 	case SHA256WithRSA, SHA256WithRSAPSS, DSAWithSHA256, ECDSAWithSHA256, SM2WithSHA256:
@@ -883,10 +883,11 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 	}
 
 	var h hash.Hash
-	if !hashType.Available() {
-		return ErrUnsupportedAlgorithm
+	if hashType == SM3 {
+		h = sm3.New()
+	} else {
+		h = hashType.New()
 	}
-	h = hashType.New()
 	h.Write(signed)
 	digest := h.Sum(nil)
 
@@ -939,7 +940,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		}
 		return
 	}
-	return ErrUnsupportedAlgorithm
+	return
 }
 
 // CheckCRLSignature checks that the signature in crl is from c.
@@ -2267,7 +2268,12 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 	}
 	tbsCSR.Raw = tbsCSRContents
 
-	h := hashFunc.New()
+	var h hash.Hash
+	if hashFunc == SM3 {
+		h = sm3.New()
+	} else {
+		h = hashFunc.New()
+	}
 	h.Write(tbsCSRContents)
 	digest := h.Sum(nil)
 
