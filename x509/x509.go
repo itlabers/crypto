@@ -1884,8 +1884,12 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	}
 
 	c.Raw = tbsCertContents
-
-	h := hashFunc.New()
+	var h hash.Hash
+	if hashFunc == SM3 {
+		h = sm3.New()
+	} else {
+		h = hashFunc.New()
+	}
 	h.Write(tbsCertContents)
 	digest := h.Sum(nil)
 
