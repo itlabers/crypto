@@ -111,7 +111,12 @@ func signedMessage(sigHash crypto.Hash, context string, transcript hash.Hash) []
 		b.Write(transcript.Sum(nil))
 		return b.Bytes()
 	}
-	h := sigHash.New()
+	var h hash.Hash
+	if sigHash == x509.SM3 {
+		h = sigHash.New()
+	} else {
+		h = sigHash.New()
+	}
 	h.Write(signaturePadding)
 	io.WriteString(h, context)
 	h.Write(transcript.Sum(nil))
