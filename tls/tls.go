@@ -20,11 +20,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/itlabers/crypto/x509"
 	"io/ioutil"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/itlabers/crypto/sm/sm2"
+	"github.com/itlabers/crypto/x509"
 )
 
 // Server returns a new TLS server side connection
@@ -295,7 +297,7 @@ func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 	}
 	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
 		switch key := key.(type) {
-		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
+		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey,sm2.PrivateKey:
 			return key, nil
 		default:
 			return nil, errors.New("tls: found unknown private key type in PKCS#8 wrapping")
