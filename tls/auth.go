@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/itlabers/crypto/sm/sm2"
+	"github.com/itlabers/crypto/sm/sm3"
 	"github.com/itlabers/crypto/x509"
 	"hash"
 	"io"
@@ -113,7 +114,7 @@ func signedMessage(sigHash crypto.Hash, context string, transcript hash.Hash) []
 	}
 	var h hash.Hash
 	if sigHash == x509.SM3 {
-		h = sigHash.New()
+		h = sm3.New()
 	} else {
 		h = sigHash.New()
 	}
