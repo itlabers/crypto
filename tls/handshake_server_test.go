@@ -7,9 +7,12 @@ package tls
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/itlabers/crypto/x509"
 	"io"
 	"net"
 	"os"
@@ -60,32 +63,20 @@ func TestSimpleError(t *testing.T) {
 	testClientHelloFailure(t, testConfig, &serverHelloDoneMsg{}, "unexpected handshake message")
 }
 
-var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205}
+var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205, VersionSSL30}
 
 func TestRejectBadProtocolVersion(t *testing.T) {
+	config := testConfig.Clone()
+	config.MinVersion = VersionSSL30
 	for _, v := range badProtocolVersions {
-		testClientHelloFailure(t, testConfig, &clientHelloMsg{
+		testClientHelloFailure(t, config, &clientHelloMsg{
 			vers:   v,
 			random: make([]byte, 32),
 		}, "unsupported versions")
 	}
-	testClientHelloFailure(t, testConfig, &clientHelloMsg{
+	testClientHelloFailure(t, config, &clientHelloMsg{
 		vers:              VersionTLS12,
 		supportedVersions: badProtocolVersions,
-		random:            make([]byte, 32),
-	}, "unsupported versions")
-}
-
-func TestSSLv3OptIn(t *testing.T) {
-	config := testConfig.Clone()
-	config.MinVersion = 0
-	testClientHelloFailure(t, config, &clientHelloMsg{
-		vers:   VersionSSL30,
-		random: make([]byte, 32),
-	}, "unsupported versions")
-	testClientHelloFailure(t, config, &clientHelloMsg{
-		vers:              VersionTLS12,
-		supportedVersions: []uint16{VersionSSL30},
 		random:            make([]byte, 32),
 	}, "unsupported versions")
 }
@@ -182,6 +173,30 @@ func TestDontSelectRSAWithECDSAKey(t *testing.T) {
 	serverConfig.BuildNameToCertificate()
 	testClientHelloFailure(t, serverConfig, clientHello, "no cipher suite supported by both client and server")
 }
+func TestDontSelectSM2WithECDSAKey(t *testing.T) {
+	// Test that, even when both sides support an RSA cipher suite, it
+	// won't be selected if the server's private key doesn't support it.
+	clientHello := &clientHelloMsg{
+		vers:               VersionTLS12,
+		random:             make([]byte, 32),
+		cipherSuites:       []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA},
+		compressionMethods: []uint8{compressionNone},
+		supportedCurves:    []CurveID{CurveP256},
+		supportedPoints:    []uint8{pointFormatUncompressed},
+	}
+	serverConfig := testConfig.Clone()
+	serverConfig.CipherSuites = clientHello.cipherSuites
+	// First test that it *does* work when the server's key is RSA.
+	testClientHello(t, serverConfig, clientHello)
+
+	// Now test that switching to an ECDSA key causes the expected error
+	// (and not an internal error about a signing failure).
+	serverConfig.Certificates = make([]Certificate, 1)
+	serverConfig.Certificates[0].Certificate = [][]byte{[]byte(certSM2)}
+	serverConfig.Certificates[0].PrivateKey = testSM2PrivateKey
+	serverConfig.BuildNameToCertificate()
+	testClientHelloFailure(t, serverConfig, clientHello, "no cipher suite supported by both client and server")
+}
 
 func TestRenegotiationExtension(t *testing.T) {
 	clientHello := &clientHelloMsg{
@@ -248,7 +263,7 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 			TLS_RSA_WITH_RC4_128_SHA,
 		},
 		compressionMethods: []uint8{compressionNone},
-		supportedCurves:    []CurveID{CurveP256, CurveP384, CurveP521, SM2P256V1},
+		supportedCurves:    []CurveID{CurveP256, CurveP384, CurveP521},
 		supportedPoints:    []uint8{pointFormatUncompressed},
 	}
 
@@ -280,6 +295,79 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 	}
 	if s := serverHello.cipherSuite; s != TLS_RSA_WITH_RC4_128_SHA {
 		t.Fatalf("bad cipher suite from server: %x", s)
+	}
+}
+
+func TestTLSPointFormats(t *testing.T) {
+	// Test that a Server returns the ec_point_format extension when ECC is
+	// negotiated, and not returned on RSA handshake.
+	tests := []struct {
+		name                string
+		cipherSuites        []uint16
+		supportedCurves     []CurveID
+		supportedPoints     []uint8
+		wantSupportedPoints bool
+	}{
+		{"ECC", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, []uint8{compressionNone}, true},
+		{"RSA", []uint16{TLS_RSA_WITH_AES_256_GCM_SHA384}, nil, nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clientHello := &clientHelloMsg{
+				vers:               VersionTLS12,
+				random:             make([]byte, 32),
+				cipherSuites:       tt.cipherSuites,
+				compressionMethods: []uint8{compressionNone},
+				supportedCurves:    tt.supportedCurves,
+				supportedPoints:    tt.supportedPoints,
+			}
+
+			c, s := localPipe(t)
+			replyChan := make(chan interface{})
+			go func() {
+				cli := Client(c, testConfig)
+				cli.vers = clientHello.vers
+				cli.writeRecord(recordTypeHandshake, clientHello.marshal())
+				reply, err := cli.readHandshake()
+				c.Close()
+				if err != nil {
+					replyChan <- err
+				} else {
+					replyChan <- reply
+				}
+			}()
+			config := testConfig.Clone()
+			config.CipherSuites = clientHello.cipherSuites
+			Server(s, config).Handshake()
+			s.Close()
+			reply := <-replyChan
+			if err, ok := reply.(error); ok {
+				t.Fatal(err)
+			}
+			serverHello, ok := reply.(*serverHelloMsg)
+			if !ok {
+				t.Fatalf("didn't get ServerHello message in reply. Got %v\n", reply)
+			}
+			if tt.wantSupportedPoints {
+				if len(serverHello.supportedPoints) < 1 {
+					t.Fatal("missing ec_point_format extension from server")
+				}
+				found := false
+				for _, p := range serverHello.supportedPoints {
+					if p == pointFormatUncompressed {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Fatal("missing uncompressed format in ec_point_format extension from server")
+				}
+			} else {
+				if len(serverHello.supportedPoints) != 0 {
+					t.Fatalf("unexcpected ec_point_format extension from server: %v", serverHello.supportedPoints)
+				}
+			}
+		})
 	}
 }
 
@@ -667,29 +755,19 @@ func (test *serverTest) run(t *testing.T, write bool) {
 }
 
 func runServerTestForVersion(t *testing.T, template *serverTest, version, option string) {
-	t.Run(version, func(t *testing.T) {
-		// Make a deep copy of the template before going parallel.
-		test := *template
-		if template.config != nil {
-			test.config = template.config.Clone()
-		}
+	// Make a deep copy of the template before going parallel.
+	test := *template
+	if template.config != nil {
+		test.config = template.config.Clone()
+	}
+	test.name = version + "-" + test.name
+	if len(test.command) == 0 {
+		test.command = defaultClientCommand
+	}
+	test.command = append([]string(nil), test.command...)
+	test.command = append(test.command, option)
 
-		if !*update && !template.wait {
-			t.Parallel()
-		}
-
-		test.name = version + "-" + test.name
-		if len(test.command) == 0 {
-			test.command = defaultClientCommand
-		}
-		test.command = append([]string(nil), test.command...)
-		test.command = append(test.command, option)
-		test.run(t, *update)
-	})
-}
-
-func runServerTestSSLv3(t *testing.T, template *serverTest) {
-	runServerTestForVersion(t, template, "SSLv3", "-ssl3")
+	runTestAndUpdateIfNeeded(t, version, test.run, test.wait)
 }
 
 func runServerTestTLS10(t *testing.T, template *serverTest) {
@@ -713,7 +791,6 @@ func TestHandshakeServerRSARC4(t *testing.T) {
 		name:    "RSA-RC4",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "RC4-SHA"},
 	}
-	runServerTestSSLv3(t, test)
 	runServerTestTLS10(t, test)
 	runServerTestTLS11(t, test)
 	runServerTestTLS12(t, test)
@@ -724,7 +801,6 @@ func TestHandshakeServerRSA3DES(t *testing.T) {
 		name:    "RSA-3DES",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "DES-CBC3-SHA"},
 	}
-	runServerTestSSLv3(t, test)
 	runServerTestTLS10(t, test)
 	runServerTestTLS12(t, test)
 }
@@ -734,7 +810,6 @@ func TestHandshakeServerRSAAES(t *testing.T) {
 		name:    "RSA-AES",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA"},
 	}
-	runServerTestSSLv3(t, test)
 	runServerTestTLS10(t, test)
 	runServerTestTLS12(t, test)
 }
@@ -1130,16 +1205,20 @@ func TestHandshakeServerRSAPKCS1v15(t *testing.T) {
 }
 
 func TestHandshakeServerRSAPSS(t *testing.T) {
+	// We send rsa_pss_rsae_sha512 first, as the test key won't fit, and we
+	// verify the server implementation will disregard the client preference in
+	// that case. See Issue 29793.
 	test := &serverTest{
-		name:                          "RSA-RSAPSS",
-		command:                       []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
-		expectHandshakeErrorIncluding: "peer doesn't support any common signature algorithms", // See Issue 32425.
+		name:    "RSA-RSAPSS",
+		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha512:rsa_pss_rsae_sha256"},
 	}
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
 
 	test = &serverTest{
-		name:    "RSA-RSAPSS",
-		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
+		name:                          "RSA-RSAPSS-TooSmall",
+		command:                       []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha512"},
+		expectHandshakeErrorIncluding: "peer doesn't support any of the certificate's signature algorithms",
 	}
 	runServerTestTLS13(t, test)
 }
@@ -1159,7 +1238,21 @@ func TestHandshakeServerEd25519(t *testing.T) {
 	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
 }
+/*func TestHandshakeServerSM2(t *testing.T) {
+	config := testConfig.Clone()
+	config.Certificates = make([]Certificate, 1)
+	config.Certificates[0].Certificate = [][]byte{[]byte(certSM2)}
+	config.Certificates[0].PrivateKey = testSM2PrivateKey
+	config.BuildNameToCertificate()
 
+	test := &serverTest{
+		name:    "Sm2",
+		command: []string{"openssl", "s_client", "-no_ticket"},
+		config:  config,
+	}
+	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
+}*/
 func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, curve CurveID, cert []byte, key crypto.PrivateKey) {
 	config := testConfig.Clone()
 	config.CipherSuites = []uint16{cipherSuite}
@@ -1254,9 +1347,9 @@ func BenchmarkHandshakeServer(b *testing.B) {
 		})
 	})
 	b.Run("ECDHE-P521-ECDSA-P521", func(b *testing.B) {
-		/*if testECDSAPrivateKey.PublicKey.Curve != elliptic.P521() {
+		if testECDSAPrivateKey.(*ecdsa.PublicKey).Curve != elliptic.P521() {
 			b.Fatal("test ECDSA key doesn't use curve P-521")
-		}*/
+		}
 		b.Run("TLSv13", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS13, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 				CurveP521, testECDSACertificate, testECDSAPrivateKey)
@@ -1304,16 +1397,9 @@ func TestClientAuth(t *testing.T) {
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
 			"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pss_rsae_sha256"},
 		config:            config,
-		expectedPeerCerts: []string{}, // See Issue 32425.
-	}
-	runServerTestTLS12(t, test)
-	test = &serverTest{
-		name: "ClientAuthRequestedAndGiven",
-		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
-			"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pss_rsae_sha256"},
-		config:            config,
 		expectedPeerCerts: []string{clientCertificatePEM},
 	}
+	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
 
 	test = &serverTest{
@@ -1600,16 +1686,33 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
 		config.MinVersion = VersionTLS13
 		server := Server(serverConn, config)
 		err := server.Handshake()
-		expectError(t, err, "key size too small for PSS signature")
+		expectError(t, err, "key size too small")
 		close(done)
 	}()
 	err = client.Handshake()
 	expectError(t, err, "handshake failure")
 	<-done
+}
 
-	// In TLS 1.2 RSA-PSS is not used, so this should succeed. See Issue 32425.
+func TestMultipleCertificates(t *testing.T) {
+	clientConfig := testConfig.Clone()
+	clientConfig.CipherSuites = []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256}
+	clientConfig.MaxVersion = VersionTLS12
+
 	serverConfig := testConfig.Clone()
-	serverConfig.Certificates = []Certificate{cert}
-	serverConfig.MaxVersion = VersionTLS12
-	testHandshake(t, testConfig, serverConfig)
+	serverConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testECDSACertificate},
+		PrivateKey:  testECDSAPrivateKey,
+	}, {
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  testRSAPrivateKey,
+	}}
+
+	_, clientState, err := testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := clientState.PeerCertificates[0].PublicKeyAlgorithm; got != x509.RSA {
+		t.Errorf("expected RSA certificate, got %v", got)
+	}
 }

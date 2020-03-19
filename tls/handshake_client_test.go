@@ -7,12 +7,12 @@ package tls
 import (
 	"bytes"
 	"crypto/rsa"
+	"github.com/itlabers/crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	gmx509 "github.com/itlabers/crypto/x509"
 	"io"
 	"math/big"
 	"net"
@@ -172,7 +172,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 	if test.key != nil {
 		key = test.key
 	}
-	derBytes, err := gmx509.MarshalECPrivateKey(key)
+	derBytes, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
 		panic(err)
 	}
@@ -499,21 +499,15 @@ func peekError(conn net.Conn) error {
 }
 
 func runClientTestForVersion(t *testing.T, template *clientTest, version, option string) {
-	t.Run(version, func(t *testing.T) {
-		// Make a deep copy of the template before going parallel.
-		test := *template
-		if template.config != nil {
-			test.config = template.config.Clone()
-		}
+	// Make a deep copy of the template before going parallel.
+	test := *template
+	if template.config != nil {
+		test.config = template.config.Clone()
+	}
+	test.name = version + "-" + test.name
+	test.args = append([]string{option}, test.args...)
 
-		if !*update {
-			t.Parallel()
-		}
-
-		test.name = version + "-" + test.name
-		test.args = append([]string{option}, test.args...)
-		test.run(t, *update)
-	})
+	runTestAndUpdateIfNeeded(t, version, test.run, false)
 }
 
 func runClientTestTLS10(t *testing.T, template *clientTest) {
@@ -812,43 +806,17 @@ func TestHandshakeClientCertECDSA(t *testing.T) {
 	runClientTestTLS10(t, test)
 	runClientTestTLS12(t, test)
 }
-func TestHandshakeClientCertSM(t *testing.T) {
-	config := testConfig.Clone()
-	cert, _ := X509KeyPair([]byte(clientSMCertificatePEM), []byte(clientSMKeyPEM))
-	config.Certificates = []Certificate{cert}
-
-	test := &clientTest{
-		name:   "ClientCert-ECDSA-RSA",
-		args:   []string{"-cipher", "AES128", "-Verify", "1"},
-		config: config,
-	}
-
-	runClientTestTLS10(t, test)
-	runClientTestTLS12(t, test)
-	runClientTestTLS13(t, test)
-
-	test = &clientTest{
-		name:   "ClientCert-ECDSA-ECDSA",
-		args:   []string{"-cipher", "ECDHE-ECDSA-AES128-SHA", "-Verify", "1"},
-		config: config,
-		cert:   testECDSACertificate,
-		key:    testECDSAPrivateKey,
-	}
-
-	runClientTestTLS10(t, test)
-	runClientTestTLS12(t, test)
-}
 
 // TestHandshakeClientCertRSAPSS tests rsa_pss_rsae_sha256 signatures from both
 // client and server certificates. It also serves from both sides a certificate
 // signed itself with RSA-PSS, mostly to check that crypto/x509 chain validation
 // works.
 func TestHandshakeClientCertRSAPSS(t *testing.T) {
-	cert, err := gmx509.ParseCertificate(testRSAPSSCertificate)
+	cert, err := x509.ParseCertificate(testRSAPSSCertificate)
 	if err != nil {
 		panic(err)
 	}
-	rootCAs := gmx509.NewCertPool()
+	rootCAs := x509.NewCertPool()
 	rootCAs.AddCert(cert)
 
 	config := testConfig.Clone()
@@ -869,19 +837,8 @@ func TestHandshakeClientCertRSAPSS(t *testing.T) {
 		cert:   testRSAPSSCertificate,
 		key:    testRSAPrivateKey,
 	}
-	runClientTestTLS13(t, test)
-
-	// In our TLS 1.2 client, RSA-PSS is only supported for server certificates.
-	// See Issue 32425.
-	test = &clientTest{
-		name: "ClientCert-RSA-RSAPSS",
-		args: []string{"-cipher", "AES128", "-Verify", "1", "-client_sigalgs",
-			"rsa_pkcs1_sha256", "-sigalgs", "rsa_pss_rsae_sha256"},
-		config: config,
-		cert:   testRSAPSSCertificate,
-		key:    testRSAPrivateKey,
-	}
 	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
 }
 
 func TestHandshakeClientCertRSAPKCS1v15(t *testing.T) {
@@ -923,12 +880,12 @@ func testResumption(t *testing.T, version uint16) {
 		Certificates: testConfig.Certificates,
 	}
 
-	issuer, err := gmx509.ParseCertificate(testRSACertificateIssuer)
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
 	if err != nil {
 		panic(err)
 	}
 
-	rootCAs := gmx509.NewCertPool()
+	rootCAs := x509.NewCertPool()
 	rootCAs.AddCert(issuer)
 
 	clientConfig := &Config{
@@ -1462,19 +1419,19 @@ func TestVerifyPeerCertificate(t *testing.T) {
 }
 
 func testVerifyPeerCertificate(t *testing.T, version uint16) {
-	issuer, err := gmx509.ParseCertificate(testRSACertificateIssuer)
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
 	if err != nil {
 		panic(err)
 	}
 
-	rootCAs := gmx509.NewCertPool()
+	rootCAs := x509.NewCertPool()
 	rootCAs.AddCert(issuer)
 
 	now := func() time.Time { return time.Unix(1476984729, 0) }
 
 	sentinelErr := errors.New("TestVerifyPeerCertificate")
 
-	verifyCallback := func(called *bool, rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
+	verifyCallback := func(called *bool, rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
 		if l := len(rawCerts); l != 1 {
 			return fmt.Errorf("got len(rawCerts) = %d, wanted 1", l)
 		}
@@ -1493,13 +1450,13 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 		{
 			configureServer: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
 					return verifyCallback(called, rawCerts, validatedChains)
 				}
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
 					return verifyCallback(called, rawCerts, validatedChains)
 				}
 			},
@@ -1521,7 +1478,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 		{
 			configureServer: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = false
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
 					return sentinelErr
 				}
 			},
@@ -1539,7 +1496,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 				config.InsecureSkipVerify = false
 			},
 			configureClient: func(config *Config, called *bool) {
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
 					return sentinelErr
 				}
 			},
@@ -1555,7 +1512,7 @@ func testVerifyPeerCertificate(t *testing.T, version uint16) {
 			},
 			configureClient: func(config *Config, called *bool) {
 				config.InsecureSkipVerify = true
-				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*gmx509.Certificate) error {
+				config.VerifyPeerCertificate = func(rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
 					if l := len(rawCerts); l != 1 {
 						return fmt.Errorf("got len(rawCerts) = %d, wanted 1", l)
 					}
@@ -1908,7 +1865,7 @@ func TestGetClientCertificate(t *testing.T) {
 }
 
 func testGetClientCertificate(t *testing.T, version uint16) {
-	issuer, err := gmx509.ParseCertificate(testRSACertificateIssuer)
+	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
 	if err != nil {
 		panic(err)
 	}
@@ -1916,7 +1873,7 @@ func testGetClientCertificate(t *testing.T, version uint16) {
 	for i, test := range getClientCertificateTests {
 		serverConfig := testConfig.Clone()
 		serverConfig.ClientAuth = VerifyClientCertIfGiven
-		serverConfig.RootCAs = gmx509.NewCertPool()
+		serverConfig.RootCAs = x509.NewCertPool()
 		serverConfig.RootCAs.AddCert(issuer)
 		serverConfig.ClientCAs = serverConfig.RootCAs
 		serverConfig.Time = func() time.Time { return time.Unix(1476984729, 0) }
@@ -2000,7 +1957,7 @@ RwBA9Xk1KBNF
 	if b == nil {
 		t.Fatal("Failed to decode certificate")
 	}
-	cert, err := gmx509.ParseCertificate(b.Bytes)
+	cert, err := x509.ParseCertificate(b.Bytes)
 	if err != nil {
 		return
 	}

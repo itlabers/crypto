@@ -4,10 +4,6 @@
 
 // Package tls partially implements TLS 1.2, as specified in RFC 5246,
 // and TLS 1.3, as specified in RFC 8446.
-//
-// TLS 1.3 is available on an opt-out basis in Go 1.13. To disable
-// it, set the GODEBUG environment variable (comma-separated key=value
-// options) such that it includes "tls13=0".
 package tls
 
 // BUG(agl): The crypto/tls package only implements some countermeasures
@@ -24,8 +20,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/itlabers/crypto/sm/sm2"
-	gmx509 "github.com/itlabers/crypto/x509"
+	"github.com/itlabers/crypto/x509"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -80,8 +75,9 @@ func NewListener(inner net.Listener, config *Config) net.Listener {
 // The configuration config must be non-nil and must include
 // at least one certificate or else set GetCertificate.
 func Listen(network, laddr string, config *Config) (net.Listener, error) {
-	if config == nil || (len(config.Certificates) == 0 && config.GetCertificate == nil) {
-		return nil, errors.New("tls: neither Certificates nor GetCertificate set in Config")
+	if config == nil || len(config.Certificates) == 0 &&
+		config.GetCertificate == nil && config.GetConfigForClient == nil {
+		return nil, errors.New("tls: neither Certificates, GetCertificate, nor GetConfigForClient set in Config")
 	}
 	l, err := net.Listen(network, laddr)
 	if err != nil {
@@ -120,9 +116,10 @@ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*
 
 	if timeout != 0 {
 		errChannel = make(chan error, 2)
-		time.AfterFunc(timeout, func() {
+		timer := time.AfterFunc(timeout, func() {
 			errChannel <- timeoutError{}
 		})
+		defer timer.Stop()
 	}
 
 	rawConn, err := dialer.Dial(network, addr)
@@ -200,6 +197,7 @@ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
 // the parsed form of the certificate is not retained.
 func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 	fail := func(err error) (Certificate, error) { return Certificate{}, err }
+
 	var cert Certificate
 	var skippedBlockTypes []string
 	for {
@@ -246,7 +244,7 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 
 	// We don't need to parse the public key for TLS, but we so do anyway
 	// to check that it looks sane and matches the private key.
-	x509Cert, err := gmx509.ParseCertificate(cert.Certificate[0])
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
 		return fail(err)
 	}
@@ -273,14 +271,6 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 		if pub.X.Cmp(priv.X) != 0 || pub.Y.Cmp(priv.Y) != 0 {
 			return fail(errors.New("tls: private key does not match public key"))
 		}
-	case *sm2.PublicKey:
-		priv, ok := cert.PrivateKey.(*sm2.PrivateKey)
-		if !ok {
-			return fail(errors.New("tls: private key type does not match public key type"))
-		}
-		if pub.X.Cmp(priv.X) != 0 || pub.Y.Cmp(priv.Y) != 0 {
-			return fail(errors.New("tls: private key does not match public key"))
-		}
 	case ed25519.PublicKey:
 		priv, ok := cert.PrivateKey.(ed25519.PrivateKey)
 		if !ok {
@@ -300,19 +290,20 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 // PKCS#1 private keys by default, while OpenSSL 1.0.0 generates PKCS#8 keys.
 // OpenSSL ecparam generates SEC1 EC private keys for ECDSA. We try all three.
 func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
-	if key, err := gmx509.ParsePKCS1PrivateKey(der); err == nil {
+	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
 		return key, nil
 	}
-	if key, err := gmx509.ParsePKCS8PrivateKey(der); err == nil {
+	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
 		switch key := key.(type) {
-		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey, *sm2.PrivateKey:
+		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
 			return key, nil
 		default:
 			return nil, errors.New("tls: found unknown private key type in PKCS#8 wrapping")
 		}
 	}
-	if key, err := gmx509.ParseECPrivateKey(der); err == nil {
+	if key, err := x509.ParseECPrivateKey(der); err == nil {
 		return key, nil
 	}
+
 	return nil, errors.New("tls: failed to parse private key")
 }

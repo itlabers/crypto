@@ -15,10 +15,8 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	gmx509 "github.com/itlabers/crypto/x509"
-	"github.com/itlabers/crypto/sm2"
-
-	"crypto/x509/pkix"
+	"github.com/itlabers/crypto/x509"
+	"github.com/itlabers/crypto/x509/pkix"
 	"encoding/pem"
 	"flag"
 	"log"
@@ -47,8 +45,6 @@ func publicKey(priv interface{}) interface{} {
 		return &k.PublicKey
 	case ed25519.PrivateKey:
 		return k.Public().(ed25519.PublicKey)
-	case *sm2.PrivateKey:
-		return &k.Public()
 	default:
 		return nil
 	}
@@ -78,13 +74,11 @@ func main() {
 		priv, err = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	case "P521":
 		priv, err = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
-	case "P256V1":
-		priv, err = sm2.GenerateKey(rand.Reader)
 	default:
 		log.Fatalf("Unrecognized elliptic curve: %q", *ecdsaCurve)
 	}
 	if err != nil {
-		log.Fatalf("Failed to generate private key: %s", err)
+		log.Fatalf("Failed to generate private key: %v", err)
 	}
 
 	var notBefore time.Time
@@ -93,7 +87,7 @@ func main() {
 	} else {
 		notBefore, err = time.Parse("Jan 2 15:04:05 2006", *validFrom)
 		if err != nil {
-			log.Fatalf("Failed to parse creation date: %s", err)
+			log.Fatalf("Failed to parse creation date: %v", err)
 		}
 	}
 
@@ -102,10 +96,10 @@ func main() {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		log.Fatalf("Failed to generate serial number: %s", err)
+		log.Fatalf("Failed to generate serial number: %v", err)
 	}
 
-	template := gmx509.Certificate{
+	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization: []string{"Acme Co"},
@@ -113,8 +107,8 @@ func main() {
 		NotBefore: notBefore,
 		NotAfter:  notAfter,
 
-		KeyUsage:              gmx509.KeyUsageKeyEncipherment | gmx509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []gmx509.ExtKeyUsage{gmx509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 	}
 
@@ -129,40 +123,40 @@ func main() {
 
 	if *isCA {
 		template.IsCA = true
-		template.KeyUsage |= gmx509.KeyUsageCertSign
+		template.KeyUsage |= x509.KeyUsageCertSign
 	}
 
-	derBytes, err := gmx509.CreateCertificate(rand.Reader, &template, &template, publicKey(priv), priv)
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(priv), priv)
 	if err != nil {
-		log.Fatalf("Failed to create certificate: %s", err)
+		log.Fatalf("Failed to create certificate: %v", err)
 	}
 
 	certOut, err := os.Create("cert.pem")
 	if err != nil {
-		log.Fatalf("Failed to open cert.pem for writing: %s", err)
+		log.Fatalf("Failed to open cert.pem for writing: %v", err)
 	}
 	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
-		log.Fatalf("Failed to write data to cert.pem: %s", err)
+		log.Fatalf("Failed to write data to cert.pem: %v", err)
 	}
 	if err := certOut.Close(); err != nil {
-		log.Fatalf("Error closing cert.pem: %s", err)
+		log.Fatalf("Error closing cert.pem: %v", err)
 	}
 	log.Print("wrote cert.pem\n")
 
 	keyOut, err := os.OpenFile("key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		log.Fatalf("Failed to open key.pem for writing:", err)
+		log.Fatalf("Failed to open key.pem for writing: %v", err)
 		return
 	}
-	privBytes, err := gmx509.MarshalPKCS8PrivateKey(priv)
+	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
 		log.Fatalf("Unable to marshal private key: %v", err)
 	}
 	if err := pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes}); err != nil {
-		log.Fatalf("Failed to write data to key.pem: %s", err)
+		log.Fatalf("Failed to write data to key.pem: %v", err)
 	}
 	if err := keyOut.Close(); err != nil {
-		log.Fatalf("Error closing key.pem: %s", err)
+		log.Fatalf("Error closing key.pem: %v", err)
 	}
 	log.Print("wrote key.pem\n")
 }

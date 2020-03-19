@@ -1037,7 +1037,10 @@ func TestCreateCertificateRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate ECDSA key: %s", err)
 	}
-
+	sm2Priv, err := sm2.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed to generate ECDSA key: %s", err)
+	}
 	tests := []struct {
 		name    string
 		priv    interface{}
@@ -1047,6 +1050,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 		{"ECDSA-256", ecdsa256Priv, ECDSAWithSHA1},
 		{"ECDSA-384", ecdsa384Priv, ECDSAWithSHA1},
 		{"ECDSA-521", ecdsa521Priv, ECDSAWithSHA1},
+		{"SM2-SM3", sm2Priv, SM2WithSM3},
 	}
 
 	for _, test := range tests {
