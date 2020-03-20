@@ -235,7 +235,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 		default:
 			return nil
 		}
-	case *sm2.PublicKey:
+	case sm2.PublicKey:
 		sigAlgs = []SignatureScheme{
 			ECDSAWithP256AndSHA256,
 			ECDSAWithP384AndSHA384,
