@@ -226,7 +226,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 			break
 		}
 		switch pub.Curve {
-		case elliptic.P256():
+		case elliptic.P256(), sm2.P256Sm2():
 			sigAlgs = []SignatureScheme{ECDSAWithP256AndSHA256}
 		case elliptic.P384():
 			sigAlgs = []SignatureScheme{ECDSAWithP384AndSHA384}

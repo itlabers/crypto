@@ -1348,7 +1348,7 @@ func BenchmarkHandshakeServer(b *testing.B) {
 		})
 	})
 	b.Run("ECDHE-P521-ECDSA-P521", func(b *testing.B) {
-		if testECDSAPrivateKey.(*ecdsa.PublicKey).Curve != elliptic.P521() {
+		if testECDSAPrivateKey.(*ecdsa.PrivateKey).Curve != elliptic.P521() {
 			b.Fatal("test ECDSA key doesn't use curve P-521")
 		}
 		b.Run("TLSv13", func(b *testing.B) {
@@ -1358,6 +1358,10 @@ func BenchmarkHandshakeServer(b *testing.B) {
 		b.Run("TLSv12", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS12, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 				CurveP521, testECDSACertificate, testECDSAPrivateKey)
+		})
+		b.Run("SM2 TLSv12", func(b *testing.B) {
+			benchmarkHandshakeServer(b, VersionTLS12, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+				CurveP256SM2, testSM2Cert, testSM2PrivateKey)
 		})
 	})
 }
