@@ -279,7 +279,7 @@ func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureSche
 	if len(peerAlgs) == 0 && vers == VersionTLS12 {
 		// For TLS 1.2, if the client didn't send signature_algorithms then we
 		// can assume that it supports SHA1. See RFC 5246, Section 7.4.1.4.1.
-		peerAlgs = []SignatureScheme{PKCS1WithSHA1, ECDSAWithSHA1}
+		peerAlgs = []SignatureScheme{PKCS1WithSHA1, ECDSAWithSHA1, ECDSAWithP256AndSHA256}
 	}
 	// Pick signature scheme in the peer's preference order, as our
 	// preference order is not configurable.
