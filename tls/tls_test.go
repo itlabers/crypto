@@ -1027,9 +1027,9 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 	sm2Cert := &Certificate{
 		// ECDSA P-256 certificate
-		Certificate: [][]byte{[]byte(certSM2)},
-		PrivateKey:  testSM2PrivateKey,
-		SupportedSignatureAlgorithms: []SignatureScheme{SM2WithSM3},
+		Certificate:                  [][]byte{[]byte(certSM2)},
+		PrivateKey:                   testSM2PrivateKey,
+		SupportedSignatureAlgorithms: []SignatureScheme{ECDSAWithP256AndSHA256},
 	}
 	rsaCert := &Certificate{
 		Certificate: [][]byte{testRSACertificate},
@@ -1046,7 +1046,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 		PrivateKey:  testP256PrivateKey,
 	}
 
-	 ed25519Cert := &Certificate{
+	ed25519Cert := &Certificate{
 		Certificate: [][]byte{testEd25519Certificate},
 		PrivateKey:  testEd25519PrivateKey,
 	}
@@ -1057,7 +1057,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 		wantErr string
 	}{
 		{sm2Cert, &ClientHelloInfo{
-			SignatureSchemes:  []SignatureScheme{SM2WithSM3},
+			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
 			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
 		}, ""},
 		{rsaCert, &ClientHelloInfo{
@@ -1070,7 +1070,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
 		}, ""},
 		{sm2Cert, &ClientHelloInfo{
-			SignatureSchemes:  []SignatureScheme{SM2WithSM3},
+			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
 			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
 		}, ""},
 		{rsaCert, &ClientHelloInfo{

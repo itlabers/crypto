@@ -26,34 +26,37 @@ import (
 func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc crypto.Hash, signed, sig []byte) error {
 	switch sigType {
 	case signatureECDSA:
-		pubKey, ok := pubkey.(*ecdsa.PublicKey)
-		if !ok {
-			return fmt.Errorf("expected an ECDSA public key, got %T", pubkey)
-		}
-		ecdsaSig := new(ecdsaSignature)
-		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
-			return err
-		}
-		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
-			return errors.New("ECDSA signature contained zero or negative values")
-		}
-		if !ecdsa.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
-			return errors.New("ECDSA verification failure")
-		}
-	case signatureSM2:
-		pubKey, ok := pubkey.(*sm2.PublicKey)
-		if !ok {
-			return fmt.Errorf("expected an sm2 public key, got %T", pubkey)
-		}
-		ecdsaSig := new(ecdsaSignature)
-		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
-			return err
-		}
-		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
-			return errors.New("sm2 signature contained zero or negative values")
-		}
-		if !sm2.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
-			return errors.New("ECDSA verification failure")
+		switch pubkey.(type) {
+		case *ecdsa.PublicKey:
+			pubKey, ok := pubkey.(*ecdsa.PublicKey)
+			if !ok {
+				return fmt.Errorf("expected an ECDSA public key, got %T", pubkey)
+			}
+			ecdsaSig := new(ecdsaSignature)
+			if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
+				return err
+			}
+			if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+				return errors.New("ECDSA signature contained zero or negative values")
+			}
+			if !ecdsa.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
+				return errors.New("ECDSA verification failure")
+			}
+		case *sm2.PublicKey:
+			pubKey, ok := pubkey.(*sm2.PublicKey)
+			if !ok {
+				return fmt.Errorf("expected an sm2 public key, got %T", pubkey)
+			}
+			ecdsaSig := new(ecdsaSignature)
+			if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
+				return err
+			}
+			if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
+				return errors.New("sm2 signature contained zero or negative values")
+			}
+			if !sm2.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
+				return errors.New("sm2 verification failure")
+			}
 		}
 	case signatureEd25519:
 		pubKey, ok := pubkey.(ed25519.PublicKey)
@@ -136,8 +139,6 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 		sigType = signatureECDSA
 	case Ed25519:
 		sigType = signatureEd25519
-	case SM2WithSM3:
-		sigType = signatureSM2
 	default:
 		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
 	}
@@ -152,8 +153,6 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 		hash = crypto.SHA512
 	case Ed25519:
 		hash = directSigning
-	case SM2WithSM3:
-		hash = x509.SM3
 	default:
 		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
 	}
@@ -170,7 +169,7 @@ func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash c
 	case *ecdsa.PublicKey:
 		return signatureECDSA, crypto.SHA1, nil
 	case sm2.PublicKey:
-		return signatureSM2, x509.SM3, nil
+		return signatureECDSA, crypto.SHA256, nil
 	case ed25519.PublicKey:
 		// RFC 8422 specifies support for Ed25519 in TLS 1.0 and 1.1,
 		// but it requires holding on to a handshake transcript to do a
@@ -238,7 +237,10 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 		}
 	case *sm2.PublicKey:
 		sigAlgs = []SignatureScheme{
-			SM2WithSM3,
+			ECDSAWithP256AndSHA256,
+			ECDSAWithP384AndSHA384,
+			ECDSAWithP521AndSHA512,
+			ECDSAWithSHA1,
 		}
 	case *rsa.PublicKey:
 		size := pub.Size()
@@ -277,7 +279,7 @@ func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureSche
 	if len(peerAlgs) == 0 && vers == VersionTLS12 {
 		// For TLS 1.2, if the client didn't send signature_algorithms then we
 		// can assume that it supports SHA1. See RFC 5246, Section 7.4.1.4.1.
-		peerAlgs = []SignatureScheme{PKCS1WithSHA1, ECDSAWithSHA1, SM2WithSM3}
+		peerAlgs = []SignatureScheme{PKCS1WithSHA1, ECDSAWithSHA1}
 	}
 	// Pick signature scheme in the peer's preference order, as our
 	// preference order is not configurable.
@@ -293,7 +295,7 @@ func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureSche
 // an unsupported private key.
 func unsupportedCertificateError(cert *Certificate) error {
 	switch cert.PrivateKey.(type) {
-	case rsa.PrivateKey, ecdsa.PrivateKey:
+	case rsa.PrivateKey, ecdsa.PrivateKey, sm2.PrivateKey:
 		return fmt.Errorf("tls: unsupported certificate: private key is %T, expected *%T",
 			cert.PrivateKey, cert.PrivateKey)
 	case *ed25519.PrivateKey:

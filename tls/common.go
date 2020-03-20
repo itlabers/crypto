@@ -14,9 +14,9 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha512"
-	"github.com/itlabers/crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/itlabers/crypto/x509"
 	"golang.org/x/sys/cpu"
 
 	"io"
@@ -117,11 +117,11 @@ const (
 type CurveID uint16
 
 const (
-	CurveP256 CurveID = 23
-	CurveP384 CurveID = 24
-	CurveP521 CurveID = 25
-	X25519    CurveID = 29
-	CurveP256SM2  CurveID = 30
+	CurveP256    CurveID = 23
+	CurveP384    CurveID = 24
+	CurveP521    CurveID = 25
+	X25519       CurveID = 29
+	CurveP256SM2 CurveID = 31
 )
 
 // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
@@ -166,7 +166,6 @@ const (
 	signaturePKCS1v15 uint8 = iota + 225
 	signatureRSAPSS
 	signatureECDSA
-	signatureSM2
 	signatureEd25519
 )
 
@@ -192,7 +191,6 @@ var supportedSignatureAlgorithms = []SignatureScheme{
 	ECDSAWithP521AndSHA512,
 	PKCS1WithSHA1,
 	ECDSAWithSHA1,
-	SM2WithSM3,
 }
 
 // helloRetryRequestRandom is set as the Random value of a ServerHello
@@ -330,9 +328,7 @@ const (
 	// Legacy signature and hash algorithms for TLS 1.2.
 	PKCS1WithSHA1 SignatureScheme = 0x0201
 	ECDSAWithSHA1 SignatureScheme = 0x0203
-
-	SM2WithSM3 SignatureScheme = 0x0000
- )
+)
 
 // ClientHelloInfo contains information from a ClientHello message in order to
 // guide application logic in the GetCertificate and GetConfigForClient callbacks.

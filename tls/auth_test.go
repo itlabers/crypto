@@ -8,7 +8,6 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"github.com/itlabers/crypto/sm/sm2"
-	"github.com/itlabers/crypto/x509"
 	"testing"
 )
 
@@ -155,10 +154,10 @@ func TestLegacyTypeAndHash(t *testing.T) {
 	if err != nil {
 		t.Errorf("SM2: unexpected error: %v", err)
 	}
-	if expectedSigType := signatureSM2; expectedSigType != sigType {
+	if expectedSigType := signatureECDSA; expectedSigType != sigType {
 		t.Errorf("SM2: expected signature type %#x, got %#x", expectedSigType, sigType)
 	}
-	if expectedHashFunc := x509.SM3; expectedHashFunc != hashFunc {
+	if expectedHashFunc := crypto.SHA256; expectedHashFunc != hashFunc {
 		t.Errorf("SM2: expected hash %#x, got %#x", expectedHashFunc, sigType)
 	}
 }

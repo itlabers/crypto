@@ -116,11 +116,11 @@ func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint1
 		return signed
 	}
 	if version >= VersionTLS12 {
-		 var h hash.Hash
-		if hashFunc ==x509.SM3 {
-			h  = sm3.New()
-		}else {
-			h  = hashFunc.New()
+		var h hash.Hash
+		if hashFunc == x509.SM3 {
+			h = sm3.New()
+		} else {
+			h = hashFunc.New()
 		}
 		for _, slice := range slices {
 			h.Write(slice)
@@ -203,7 +203,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 			return nil, err
 		}
 	}
-	 if (sigType == signatureSM2 || sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
+	if (sigType == signaturePKCS1v15 || sigType == signatureRSAPSS) != ka.isRSA {
 		return nil, errors.New("tls: certificate cannot be used with the selected cipher suite")
 	}
 

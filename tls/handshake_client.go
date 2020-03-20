@@ -891,7 +891,7 @@ func certificateRequestInfoFromMsg(vers uint16, certReq *certificateRequestMsg) 
 			continue
 		}
 		switch sigType {
-		case signatureECDSA, signatureEd25519, signatureSM2:
+		case signatureECDSA, signatureEd25519:
 			if ecAvail {
 				cri.SignatureSchemes = append(cri.SignatureSchemes, sigScheme)
 			}
