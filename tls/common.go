@@ -16,6 +16,8 @@ import (
 	"crypto/sha512"
 	"errors"
 	"fmt"
+
+	"github.com/itlabers/crypto/sm/sm2"
 	"github.com/itlabers/crypto/x509"
 	"golang.org/x/sys/cpu"
 
@@ -1006,6 +1008,8 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 	var ecdsaCipherSuite bool
 	if priv, ok := c.PrivateKey.(crypto.Signer); ok {
 		switch pub := priv.Public().(type) {
+		case *sm2.PublicKey:
+			ecdsaCipherSuite = true
 		case *ecdsa.PublicKey:
 			var curve CurveID
 			switch pub.Curve {

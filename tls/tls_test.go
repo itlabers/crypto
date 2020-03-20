@@ -1027,7 +1027,7 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 	sm2Cert := &Certificate{
 		// ECDSA P-256 certificate
-		Certificate:                  [][]byte{[]byte(certSM2)},
+		Certificate:                  [][]byte{testSM2Cert},
 		PrivateKey:                   testSM2PrivateKey,
 		SupportedSignatureAlgorithms: []SignatureScheme{ECDSAWithP256AndSHA256},
 	}

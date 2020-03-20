@@ -1238,6 +1238,7 @@ func TestHandshakeServerEd25519(t *testing.T) {
 	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
 }
+
 /*func TestHandshakeServerSM2(t *testing.T) {
 	config := testConfig.Clone()
 	config.Certificates = make([]Certificate, 1)
@@ -1412,7 +1413,7 @@ func TestClientAuth(t *testing.T) {
 	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
 
-	test = &serverTest{
+	/*test = &serverTest{
 		name: "ClientAuthRequestedAndEd25519Given",
 		command: []string{"openssl", "s_client", "-no_ticket",
 			"-cert", ed25519CertPath, "-key", ed25519KeyPath},
@@ -1420,7 +1421,7 @@ func TestClientAuth(t *testing.T) {
 		expectedPeerCerts: []string{clientEd25519CertificatePEM},
 	}
 	runServerTestTLS12(t, test)
-	runServerTestTLS13(t, test)
+	runServerTestTLS13(t, test)*/
 
 	test = &serverTest{
 		name: "ClientAuthRequestedAndPKCS1v15Given",

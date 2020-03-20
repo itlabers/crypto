@@ -235,7 +235,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 		default:
 			return nil
 		}
-	case sm2.PublicKey:
+	case *sm2.PublicKey:
 		sigAlgs = []SignatureScheme{
 			ECDSAWithP256AndSHA256,
 			ECDSAWithP384AndSHA384,
@@ -309,6 +309,7 @@ func unsupportedCertificateError(cert *Certificate) error {
 	}
 
 	switch pub := signer.Public().(type) {
+	case *sm2.PublicKey:
 	case *ecdsa.PublicKey:
 		switch pub.Curve {
 		case elliptic.P256():
