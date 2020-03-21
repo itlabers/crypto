@@ -6,6 +6,7 @@
 package sm2
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
@@ -109,4 +110,26 @@ func TestSignAndVerify(t *testing.T) {
 	if Verify(&priv.PublicKey, hashed, r, s) {
 		t.Errorf("Verify always works!")
 	}
+}
+func TestEncryptAndDecrypt(t *testing.T) {
+	priv, _ := GenerateKey(rand.Reader)
+
+	origin := []byte("testintestintestintestintestintestinggggggtesting")
+	hash := sm3.New()
+	hash.Write(origin)
+	hashed := hash.Sum(nil)
+	encrypted, err := priv.PublicKey.Encrypt(hashed)
+	if err != nil {
+		t.Errorf(" error encrypt: %s", err)
+		return
+	}
+	decrypted, err := priv.Decrypt(encrypted)
+	if err != nil {
+		t.Errorf(" error encrypt: %s", err)
+		return
+	}
+	if !bytes.EqualFold(decrypted, hashed) {
+		t.Errorf(" Verify failed")
+	}
+
 }

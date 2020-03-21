@@ -179,7 +179,7 @@ func TestDontSelectSM2WithECDSAKey(t *testing.T) {
 	clientHello := &clientHelloMsg{
 		vers:               VersionTLS12,
 		random:             make([]byte, 32),
-		cipherSuites:       []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA},
+		cipherSuites:       []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256},
 		compressionMethods: []uint8{compressionNone},
 		supportedCurves:    []CurveID{CurveP256},
 		supportedPoints:    []uint8{pointFormatUncompressed},
@@ -192,7 +192,7 @@ func TestDontSelectSM2WithECDSAKey(t *testing.T) {
 	// Now test that switching to an ECDSA key causes the expected error
 	// (and not an internal error about a signing failure).
 	serverConfig.Certificates = make([]Certificate, 1)
-	serverConfig.Certificates[0].Certificate = [][]byte{[]byte(certSM2)}
+	serverConfig.Certificates[0].Certificate = [][]byte{testSM2Cert}
 	serverConfig.Certificates[0].PrivateKey = testSM2PrivateKey
 	serverConfig.BuildNameToCertificate()
 	testClientHelloFailure(t, serverConfig, clientHello, "no cipher suite supported by both client and server")

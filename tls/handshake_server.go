@@ -10,10 +10,10 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/subtle"
-	"github.com/itlabers/crypto/sm/sm2"
-	"github.com/itlabers/crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/itlabers/crypto/sm/sm2"
+	"github.com/itlabers/crypto/x509"
 	"io"
 	"sync/atomic"
 )
@@ -259,7 +259,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 		case *rsa.PublicKey:
 			hs.rsaSignOk = true
 		case *sm2.PublicKey:
-			hs.rsaSignOk = true
+			hs.ecSignOk = true
 		default:
 			c.sendAlert(alertInternalError)
 			return fmt.Errorf("tls: unsupported signing key type (%T)", priv.Public())
@@ -781,7 +781,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	}
 
 	switch certs[0].PublicKey.(type) {
-	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey,*sm2.PublicKey:
+	case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey, *sm2.PublicKey:
 	default:
 		c.sendAlert(alertUnsupportedCertificate)
 		return fmt.Errorf("tls: client certificate contains an unsupported public key of type %T", certs[0].PublicKey)
