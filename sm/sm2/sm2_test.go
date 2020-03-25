@@ -74,12 +74,11 @@ func TestKeyGeneration(t *testing.T) {
 }
 
 func BenchmarkSign(b *testing.B) {
+	priv, _ := GenerateKey(rand.Reader)
 	b.ResetTimer()
+	b.ReportAllocs()
 	origin := []byte("testing")
 	hashed := sm3.SumSM3(origin)
-	priv, _ := GenerateKey(rand.Reader)
-	b.ReportAllocs()
-	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _, _ = Sign(rand.Reader, priv, hashed[:])
 	}
