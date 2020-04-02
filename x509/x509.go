@@ -888,9 +888,6 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 	} else {
 		h = hashType.New()
 	}
-	h.Write(signed)
-	digest := h.Sum(nil)
-
 	switch pub := publicKey.(type) {
 	case *sm2.PublicKey:
 		sm2Sig := new(sm2Signature)
@@ -902,16 +899,20 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		if sm2Sig.R.Sign() <= 0 || sm2Sig.S.Sign() <= 0 {
 			return errors.New("x509: sm2 signature contained zero or negative values")
 		}
-		if !sm2.Verify(pub, digest, sm2Sig.R, sm2Sig.S) {
+		if !sm2.Verify(pub, "", signed, h, sm2Sig.R, sm2Sig.S) {
 			return errors.New("x509: sm2 verification failure")
 		}
 	case *rsa.PublicKey:
+		h.Write(signed)
+		digest := h.Sum(nil)
 		if algo.isRSAPSS() {
 			return rsa.VerifyPSS(pub, hashType, digest, signature, &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
 		} else {
 			return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
 		}
 	case *dsa.PublicKey:
+		h.Write(signed)
+		digest := h.Sum(nil)
 		dsaSig := new(dsaSignature)
 		if rest, err := asn1.Unmarshal(signature, dsaSig); err != nil {
 			return err
@@ -926,6 +927,8 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		}
 		return
 	case *ecdsa.PublicKey:
+		h.Write(signed)
+		digest := h.Sum(nil)
 		ecdsaSig := new(ecdsaSignature)
 		if rest, err := asn1.Unmarshal(signature, ecdsaSig); err != nil {
 			return err
@@ -1089,7 +1092,6 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{
 				Y:     y,
 			}
 			return pub, nil
-
 		}
 	default:
 		return nil, nil
@@ -1740,8 +1742,6 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 		case sm2.P256Sm2():
 			hashFunc = SM3
 			sigAlgo.Algorithm = oidSignatureSM2WithSM3
-			//hashFunc = crypto.SHA256
-			//sigAlgo.Algorithm = oidSignatureSM2WithSHA256
 		default:
 			err = errors.New("x509: SM2 unknown elliptic curve")
 		}
@@ -1764,6 +1764,9 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 		case elliptic.P521():
 			hashFunc = crypto.SHA512
 			sigAlgo.Algorithm = oidSignatureECDSAWithSHA512
+		case sm2.P256Sm2():
+			hashFunc = SM3
+			sigAlgo.Algorithm = oidSignatureSM2WithSM3
 		default:
 			err = errors.New("x509: unknown elliptic curve")
 		}

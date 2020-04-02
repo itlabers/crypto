@@ -104,6 +104,7 @@ func MarshalPKCS8PrivateKey(key interface{}) ([]byte, error) {
 		}
 	case *ecdsa.PrivateKey:
 		oid, ok := oidFromNamedCurve(k.Curve)
+
 		if !ok {
 			return nil, errors.New("x509: unknown curve while marshaling to PKCS#8")
 		}

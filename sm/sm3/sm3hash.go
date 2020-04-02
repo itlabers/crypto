@@ -15,7 +15,7 @@ limitations under the License.
 */
 package sm3
 
-func leftRotate(x uint32, r uint32) uint32 { return (x<<(r%32) | x>>(32-r%32)) }
+func leftRotate(x uint32, r uint32) uint32 { return x<<(r%32) | x>>(32-r%32) }
 
 func ff0(X uint32, Y uint32, Z uint32) uint32 { return X ^ Y ^ Z }
 func ff1(X uint32, Y uint32, Z uint32) uint32 { return (X & Y) | (X & Z) | (Y & Z) }

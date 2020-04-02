@@ -1,50 +1,102 @@
 /*
-// Copyright 2017 cetc-30. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+Copyright Suzhou Tongji Fintech Research Institute 2017 All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-// Package china crypto algorithm implements the sm2, sm3, sm4 algorithms
+                 http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
+
 package sm4
 
 import (
-	"bytes"
+	"fmt"
+	"log"
+	"reflect"
 	"testing"
 )
 
-func TestEncAndDec(t *testing.T) {
+func TestSM4(t *testing.T) {
 	key := []byte("1234567890abcdef")
-	msg := []byte("this is a test")
-	encMsg := Sm4Ecb(key, msg, ENC)
-	dec := Sm4Ecb(key, encMsg, DEC)
-	if !bytes.Equal(msg, dec) {
-		t.Errorf("sm4 self enc and dec failed")
+	fmt.Printf("key = %v\n", key)
+	data := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10}
+	WriteKeyToPem("key.pem", key, nil)
+	key, err := ReadKeyFromPem("key.pem", nil)
+	fmt.Printf("key = %v\n", key)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("data = %x\n", data)
+	c, err := NewCipher(key)
+	if err != nil {
+		log.Fatal(err)
+	}
+	d0 := make([]byte, 16)
+	c.Encrypt(d0, data)
+	fmt.Printf("d0 = %x\n", d0)
+	d1 := make([]byte, 16)
+	c.Decrypt(d1, d0)
+	fmt.Printf("d1 = %x\n", d1)
+	if sa := testCompare(data, d1); sa != true {
+		t.Fatal("Error data!")
 	}
 }
 
-var buf = make([]byte, 8192)
-
-func BenchmarkSm4Ecb(b *testing.B) {
-	b.SetBytes(8)
-
-}
-
-func benchmarkSize(b *testing.B, size int) {
-	b.SetBytes(int64(size))
+func BenchmarkSM4(t *testing.B) {
+	t.ReportAllocs()
 	key := []byte("1234567890abcdef")
-	for i := 0; i < b.N; i++ {
-		Sm4Ecb(key, buf[:size], ENC)
+	data := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10}
+	WriteKeyToPem("key.pem", key, nil)
+	key, err := ReadKeyFromPem("key.pem", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	c, err := NewCipher(key)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for i := 0; i < t.N; i++ {
+		d0 := make([]byte, 16)
+		c.Encrypt(d0, data)
+		d1 := make([]byte, 16)
+		c.Decrypt(d1, d0)
 	}
 }
 
-func BenchmarkSm4Ecb8Bytes(b *testing.B) {
-	benchmarkSize(b, 8)
+func TestErrKeyLen(t *testing.T) {
+	fmt.Printf("\n--------------test key len------------------")
+	key := []byte("1234567890abcdefg")
+	_, err := NewCipher(key)
+	if err != nil {
+		fmt.Println("\nError key len !")
+	}
+	key = []byte("1234")
+	_, err = NewCipher(key)
+	if err != nil {
+		fmt.Println("Error key len !")
+	}
+	fmt.Println("------------------end----------------------")
 }
 
-func BenchmarkSm4Ecb1K(b *testing.B) {
-	benchmarkSize(b, 1024)
-}
-
-func BenchmarkSm4Ecb8K(b *testing.B) {
-	benchmarkSize(b, 8192)
+func testCompare(key1, key2 []byte) bool {
+	if len(key1) != len(key2) {
+		return false
+	}
+	for i, v := range key1 {
+		if i == 1 {
+			fmt.Println("type of v", reflect.TypeOf(v))
+		}
+		a := key2[i]
+		if a != v {
+			return false
+		}
+	}
+	return true
 }

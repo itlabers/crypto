@@ -68,20 +68,17 @@ func TestParsePKCS8PrivateKey(t *testing.T) {
 	} else {
 		t.Logf("%v", key)
 	}
-	hfunc := sha256.New()
-	hfunc.Write(msg)
-	hash := hfunc.Sum(nil)
+	hash := sha256.New()
 	priv := key.(*sm2.PrivateKey)
-	r, s, err := sm2.Sign(rand.Reader, priv, hash)
+	r, s, err := sm2.Sign(rand.Reader, priv, sm2.DEFAULT_ID, msg, hash)
 	if err != nil {
 		panic(err)
 	}
-
-	ret := sm2.Verify(&priv.PublicKey, hash, r, s)
+	ret := sm2.Verify(&priv.PublicKey, sm2.DEFAULT_ID, msg, hash, r, s)
 	fmt.Println(ret)
 }
 func TestMarshalPKCS8PrivateKey(t *testing.T) {
-	priv, _ := sm2.GenerateKey(rand.Reader)
+	priv, _ := ecdsa.GenerateKey(sm2.P256Sm2(), rand.Reader)
 	encoded, _ := MarshalPKCS8PrivateKey(priv)
 	pwd, _ := os.Getwd()
 	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: encoded})
@@ -112,8 +109,64 @@ func TestParseSMPKIXPublicKey(t *testing.T) {
 	}
 }
 
+var sm2certPem = `
+-----BEGIN CERTIFICATE-----
+MIICLTCCAdKgAwIBAgIQWE/xaQ8WQ41MByZsBHXksTAKBggqgRzPVQGDdTBsMQsw
+CQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZy
+YW5jaXNjbzEUMBIGA1UEChMLZXhhbXBsZS5jb20xGjAYBgNVBAMTEXRsc2NhLmV4
+YW1wbGUuY29tMB4XDTIwMDMyNTA5MDEwMFoXDTMwMDMyMzA5MDEwMFowVjELMAkG
+A1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBGcmFu
+Y2lzY28xGjAYBgNVBAMMEUFkbWluQGV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYI
+KoEcz1UBgi0DQgAEC6iQDOd4KMOtXg46sjhC6favSl5xQVnvcSmdb1/MEKFMNtgM
+FncolgJ8Sn+QNn7RTBlHLYO5JYQUd6DpwyJtlKNsMGowDgYDVR0PAQH/BAQDAgWg
+MB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAMBgNVHRMBAf8EAjAAMCsG
+A1UdIwQkMCKAIJZzDezDLbe5qFnQxjuhpkox/yla30CDjPDgA8gi+AKWMAoGCCqB
+HM9VAYN1A0kAMEYCIQDB1j/kxz3lYtgyCjYPOfV3qz9KIa/1k0jGj9pnZ22zOwIh
+AJ8nEVxTUktLosBtaf//HuCJjXo6Q6pc+nVgTWSzrsE8
+-----END CERTIFICATE-----
+`
+var sm2keyPem = `
+-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqBHM9VAYItBG0wawIBAQQg3XqviGxucBC0D2DS
+qS2+ySbmXWJP7sFP+ohyEXq+p3uhRANCAAQLqJAM53gow61eDjqyOELp9q9KXnFB
+We9xKZ1vX8wQoUw22AwWdyiWAnxKf5A2ftFMGUctg7klhBR3oOnDIm2U
+-----END PRIVATE KEY-----
+`
+
+func TestParseSM2Certificate(t *testing.T) {
+	block, _ := pem.Decode([]byte(sm2certPem))
+	if block == nil {
+		panic("failed to parse certificate PEM")
+	}
+	cert, err := ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Errorf("Failed to marshal RSA public key for the second time: %s", err)
+		return
+	} else {
+		t.Logf("cert :%v", cert)
+	}
+	priBlock, _ := pem.Decode([]byte(sm2keyPem))
+
+	key, err := ParsePKCS8PrivateKey(priBlock.Bytes)
+	if err != nil {
+		t.Errorf("Failed to marshal sm2 public key for the second time: %s", err)
+		return
+	} else {
+		t.Logf("key :%v", key)
+	}
+	hash := sha256.New()
+	priv := key.(*sm2.PrivateKey)
+	r, s, err := sm2.Sign(rand.Reader, priv, sm2.DEFAULT_ID, msg, hash)
+	if err != nil {
+		panic(err)
+	}
+
+	ret := sm2.Verify(cert.PublicKey.(*sm2.PublicKey), sm2.DEFAULT_ID, msg, hash, r, s)
+	fmt.Println(ret)
+}
+
 func TestParseCertificate(t *testing.T) {
-	block, _ := pem.Decode([]byte(certPEM))
+	block, _ := pem.Decode([]byte(sm2CertPEM))
 	if block == nil {
 		panic("failed to parse certificate PEM")
 	}
@@ -125,27 +178,26 @@ func TestParseCertificate(t *testing.T) {
 		t.Logf("cert :%v", cert)
 	}
 	priBlock, _ := pem.Decode([]byte(sm2pemPrivateKey))
+
 	key, err := ParsePKCS8PrivateKey(priBlock.Bytes)
 	if err != nil {
 		t.Errorf("Failed to marshal sm2 public key for the second time: %s", err)
 		return
 	} else {
-		t.Logf("cert :%v", cert)
+		t.Logf("key :%v", key)
 	}
-	hfunc := sha256.New()
-	hfunc.Write(msg)
-	hash := hfunc.Sum(nil)
+	hash := sha256.New()
 	priv := key.(*sm2.PrivateKey)
-	r, s, err := sm2.Sign(rand.Reader, priv, hash)
+	r, s, err := sm2.Sign(rand.Reader, priv, sm2.DEFAULT_ID, msg, hash)
 	if err != nil {
 		panic(err)
 	}
 
-	ret := sm2.Verify(cert.PublicKey.(*sm2.PublicKey), hash, r, s)
+	ret := sm2.Verify(cert.PublicKey.(*sm2.PublicKey), sm2.DEFAULT_ID, msg, hash, r, s)
 	fmt.Println(ret)
 }
 
-func TestParsePKIXPublicKey(t *testing.T) {
+func TestParseSM2PKIXPublicKey(t *testing.T) {
 	block, _ := pem.Decode([]byte(pemPublicKey))
 	pub, err := ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
@@ -210,7 +262,7 @@ MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEWcGMQ1p7LHKoKUKy8MJbid7R4tUG
 A6tNTrDQUKKWLegHzR8Ba5fEx+jfXEKvZmQlIj8ftVyzaERs/w3UMbRbpw==
 -----END PUBLIC KEY-----
 `
-var certPEM = `
+var sm2CertPEM = `
 -----BEGIN CERTIFICATE-----
 MIICATCCAacCFG20g4/wR3rR61O92HI/pSTsqNwHMAoGCCqGSM49BAMCMIGCMQsw
 CQYDVQQGEwJDTjETMBEGA1UECAwKR3VhbmcgWmhvdTELMAkGA1UEBwwCR1oxDTAL
@@ -1037,9 +1089,9 @@ func TestCreateCertificateRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate ECDSA key: %s", err)
 	}
-	sm2Priv, err := sm2.GenerateKey(rand.Reader)
+	sm2Priv, err := ecdsa.GenerateKey(sm2.P256Sm2(), rand.Reader)
 	if err != nil {
-		t.Fatalf("Failed to generate ECDSA key: %s", err)
+		t.Fatalf("Failed to generate sm2 key: %s", err)
 	}
 	tests := []struct {
 		name    string

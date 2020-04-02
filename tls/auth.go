@@ -54,7 +54,7 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 			if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
 				return errors.New("sm2 signature contained zero or negative values")
 			}
-			if !sm2.Verify(pubKey, signed, ecdsaSig.R, ecdsaSig.S) {
+			if !sm2.Verify(pubKey, "", signed, hashFunc.New(), ecdsaSig.R, ecdsaSig.S) {
 				return errors.New("sm2 verification failure")
 			}
 		}
