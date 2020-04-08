@@ -6,6 +6,8 @@ import (
 	"encoding/asn1"
 	"io"
 	"math/big"
+
+	"github.com/itlabers/crypto/sm/sm3"
 )
 
 // PublicKey represents an sm2 public key.
@@ -30,7 +32,7 @@ type sm2Signature struct {
 }
 
 func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	r, s, err := Sign(rand, priv, DEFAULT_ID, digest, opts.HashFunc().New())
+	r, s, err := Sign(rand, priv, DEFAULT_ID, digest, sm3.New())
 	if err != nil {
 		return nil, err
 	}
