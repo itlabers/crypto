@@ -15,7 +15,6 @@ import (
 	"github.com/itlabers/crypto/sm/sm2"
 	"github.com/itlabers/crypto/x509"
 	"io"
-	"log"
 	"sync/atomic"
 )
 
@@ -739,14 +738,12 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	var err error
 	for i, asn1Data := range certificates {
 		if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
-			log.Printf("processCertsFromClient error :" + alertBadCertificate.String())
 			c.sendAlert(alertBadCertificate)
 			return errors.New("tls: failed to parse client certificate: " + err.Error())
 		}
 	}
 
 	if len(certs) == 0 && requiresClientCert(c.config.ClientAuth) {
-		log.Printf("requiresClientCert error :" + alertBadCertificate.String())
 		c.sendAlert(alertBadCertificate)
 		return errors.New("tls: client didn't provide a certificate")
 	}
@@ -764,7 +761,6 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 		}
 		chains, err := certs[0].Verify(opts)
 		if err != nil {
-			log.Printf("Verify error :" + alertBadCertificate.String())
 			c.sendAlert(alertBadCertificate)
 			return errors.New("tls: failed to verify client certificate: " + err.Error())
 		}
@@ -773,7 +769,6 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 
 	if c.config.VerifyPeerCertificate != nil {
 		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {
-			log.Printf("Verify error :" + alertBadCertificate.String())
 			c.sendAlert(alertBadCertificate)
 			return err
 		}

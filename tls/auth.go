@@ -54,7 +54,13 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 			if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
 				return errors.New("sm2 signature contained zero or negative values")
 			}
-			if !sm2.Verify(pubKey, "", signed, hashFunc.New(), ecdsaSig.R, ecdsaSig.S) {
+			var h hash.Hash
+			if hashFunc==x509.SM3 {
+				h=sm3.New()
+			}else {
+				h=hashFunc.New()
+			}
+			if !sm2.Verify(pubKey, "", signed, h, ecdsaSig.R, ecdsaSig.S) {
 				return errors.New("sm2 verification failure")
 			}
 		}
@@ -169,7 +175,7 @@ func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash c
 	case *ecdsa.PublicKey:
 		return signatureECDSA, crypto.SHA1, nil
 	case sm2.PublicKey:
-		return signatureECDSA, crypto.SHA256, nil
+		return signatureECDSA, x509.SM3, nil
 	case ed25519.PublicKey:
 		// RFC 8422 specifies support for Ed25519 in TLS 1.0 and 1.1,
 		// but it requires holding on to a handshake transcript to do a

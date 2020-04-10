@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/elliptic"
 	"encoding/asn1"
+	"hash"
 	"io"
 	"math/big"
 
@@ -32,7 +33,14 @@ type sm2Signature struct {
 }
 
 func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	r, s, err := Sign(rand, priv, DEFAULT_ID, digest, sm3.New())
+    hFunc:=opts.HashFunc()
+    var h hash.Hash
+	if  hFunc==255 {
+		h=sm3.New()
+	}else {
+		h=hFunc.New()
+	}
+	r, s, err := Sign(rand, priv, DEFAULT_ID, digest, h)
 	if err != nil {
 		return nil, err
 	}

@@ -21,13 +21,14 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/itlabers/crypto/sm/sm3"
 	"hash"
 	"io"
 	"math/big"
 	"net"
 	"strconv"
 	"time"
+
+	"github.com/itlabers/crypto/sm/sm3"
 
 	"github.com/itlabers/crypto/sm/sm2"
 )
@@ -888,6 +889,8 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 	} else {
 		h = hashType.New()
 	}
+	h.Write(signed)
+	digest := h.Sum(nil)
 	switch pub := publicKey.(type) {
 	case *sm2.PublicKey:
 		sm2Sig := new(sm2Signature)
@@ -899,20 +902,16 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		if sm2Sig.R.Sign() <= 0 || sm2Sig.S.Sign() <= 0 {
 			return errors.New("x509: sm2 signature contained zero or negative values")
 		}
-		if !sm2.Verify(pub, "", signed, h, sm2Sig.R, sm2Sig.S) {
+		if !sm2.Verify(pub, "", digest, h, sm2Sig.R, sm2Sig.S) {
 			return errors.New("x509: sm2 verification failure")
 		}
 	case *rsa.PublicKey:
-		h.Write(signed)
-		digest := h.Sum(nil)
 		if algo.isRSAPSS() {
 			return rsa.VerifyPSS(pub, hashType, digest, signature, &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
 		} else {
 			return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
 		}
 	case *dsa.PublicKey:
-		h.Write(signed)
-		digest := h.Sum(nil)
 		dsaSig := new(dsaSignature)
 		if rest, err := asn1.Unmarshal(signature, dsaSig); err != nil {
 			return err
@@ -927,8 +926,6 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		}
 		return
 	case *ecdsa.PublicKey:
-		h.Write(signed)
-		digest := h.Sum(nil)
 		ecdsaSig := new(ecdsaSignature)
 		if rest, err := asn1.Unmarshal(signature, ecdsaSig); err != nil {
 			return err

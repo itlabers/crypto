@@ -27,13 +27,13 @@ func (s *server) Echo(ctx context.Context, req *echo.EchoRequest) (*echo.EchoRes
 	return &echo.EchoResponse{Result: req.Req}, nil
 }
 
-const caServerCrt = "testdata/gm/server/ca.crt"
-const serverCrt = "testdata/gm/server/server.crt"
-const serverKey = "testdata/gm/server/server.key"
+const caServerCrt = "../testdata/gm/server/ca.crt"
+const serverCrt = "../testdata/gm/server/server.crt"
+const serverKey = "../testdata/gm/server/server.key"
 
-const caClientCert = "testdata/gm/client/ca.crt"
-const clientCrt = "testdata/gm/client/client.crt"
-const clientKey = "testdata/gm/client/client.key"
+const caClientCert = "../testdata/gm/client/ca.crt"
+const clientCrt = "../testdata/gm/client/client.crt"
+const clientKey = "../testdata/gm/client/client.key"
 
 func serverRun() {
 	cert, err := tls.LoadX509KeyPair(serverCrt, serverKey)

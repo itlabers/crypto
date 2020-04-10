@@ -109,43 +109,42 @@ func TestParseSMPKIXPublicKey(t *testing.T) {
 	}
 }
 
-var sm2certPem = `
------BEGIN CERTIFICATE-----
-MIICLTCCAdKgAwIBAgIQWE/xaQ8WQ41MByZsBHXksTAKBggqgRzPVQGDdTBsMQsw
-CQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNU2FuIEZy
-YW5jaXNjbzEUMBIGA1UEChMLZXhhbXBsZS5jb20xGjAYBgNVBAMTEXRsc2NhLmV4
-YW1wbGUuY29tMB4XDTIwMDMyNTA5MDEwMFoXDTMwMDMyMzA5MDEwMFowVjELMAkG
-A1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBGcmFu
-Y2lzY28xGjAYBgNVBAMMEUFkbWluQGV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYI
-KoEcz1UBgi0DQgAEC6iQDOd4KMOtXg46sjhC6favSl5xQVnvcSmdb1/MEKFMNtgM
-FncolgJ8Sn+QNn7RTBlHLYO5JYQUd6DpwyJtlKNsMGowDgYDVR0PAQH/BAQDAgWg
-MB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAMBgNVHRMBAf8EAjAAMCsG
-A1UdIwQkMCKAIJZzDezDLbe5qFnQxjuhpkox/yla30CDjPDgA8gi+AKWMAoGCCqB
-HM9VAYN1A0kAMEYCIQDB1j/kxz3lYtgyCjYPOfV3qz9KIa/1k0jGj9pnZ22zOwIh
-AJ8nEVxTUktLosBtaf//HuCJjXo6Q6pc+nVgTWSzrsE8
------END CERTIFICATE-----
-`
-var sm2keyPem = `
------BEGIN PRIVATE KEY-----
-MIGHAgEAMBMGByqGSM49AgEGCCqBHM9VAYItBG0wawIBAQQg3XqviGxucBC0D2DS
-qS2+ySbmXWJP7sFP+ohyEXq+p3uhRANCAAQLqJAM53gow61eDjqyOELp9q9KXnFB
-We9xKZ1vX8wQoUw22AwWdyiWAnxKf5A2ftFMGUctg7klhBR3oOnDIm2U
------END PRIVATE KEY-----
-`
+const caServerCrt = "../testdata/gm/server/ca.crt"
+const serverCrt = "../testdata/gm/server/server.crt"
+const serverKey = "../testdata/gm/server/server.key"
+
+const caClientCert = "../testdata/gm/client/ca.crt"
+const clientCrt = "../testdata/gm/client/client.crt"
+const clientKey = "../testdata/gm/client/client.key"
 
 func TestParseSM2Certificate(t *testing.T) {
-	block, _ := pem.Decode([]byte(sm2certPem))
-	if block == nil {
-		panic("failed to parse certificate PEM")
-	}
-	cert, err := ParseCertificate(block.Bytes)
+	caCertBytes,_:=ioutil.ReadFile(caServerCrt)
+	caBlock, _ := pem.Decode(caCertBytes)
+
+	caCert, err := ParseCertificate(caBlock.Bytes)
 	if err != nil {
 		t.Errorf("Failed to marshal RSA public key for the second time: %s", err)
 		return
 	} else {
-		t.Logf("cert :%v", cert)
+		t.Logf("cert :%v", caCert)
 	}
-	priBlock, _ := pem.Decode([]byte(sm2keyPem))
+   caPublicKey := caCert.PublicKey.(sm2.PublicKey)
+
+
+	serverCertBytes,_:=ioutil.ReadFile(serverCrt)
+	serverBlock, _ := pem.Decode(serverCertBytes)
+	if serverBlock == nil {
+		panic("failed to parse certificate PEM")
+	}
+	serverCert, err := ParseCertificate(serverBlock.Bytes)
+	if err != nil {
+		t.Errorf("Failed to marshal RSA public key for the second time: %s", err)
+		return
+	} else {
+		t.Logf("cert :%v", serverCert)
+	}
+	serverKeyBytes,_:=ioutil.ReadFile(serverKey)
+	priBlock, _ := pem.Decode(serverKeyBytes)
 
 	key, err := ParsePKCS8PrivateKey(priBlock.Bytes)
 	if err != nil {
@@ -161,7 +160,7 @@ func TestParseSM2Certificate(t *testing.T) {
 		panic(err)
 	}
 
-	ret := sm2.Verify(cert.PublicKey.(*sm2.PublicKey), sm2.DEFAULT_ID, msg, hash, r, s)
+	ret := sm2.Verify(serverCert.PublicKey.(*sm2.PublicKey), sm2.DEFAULT_ID, msg, hash, r, s)
 	fmt.Println(ret)
 }
 
