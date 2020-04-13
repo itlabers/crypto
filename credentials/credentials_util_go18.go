@@ -24,8 +24,8 @@ import "github.com/itlabers/crypto/tls"
 // If cfg is nil, a new zero tls.Config is returned.
 func cloneTLSConfig(cfg *tls.Config) *tls.Config {
 	if cfg == nil {
-		return &tls.Config{}
+		return &tls.Config{InsecureSkipVerify: true}
 	}
-
+	cfg.InsecureSkipVerify = true
 	return cfg.Clone()
 }

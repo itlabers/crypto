@@ -128,7 +128,7 @@ func TestParseSM2Certificate(t *testing.T) {
 	} else {
 		t.Logf("cert :%v", caCert)
 	}
-   caPublicKey := caCert.PublicKey.(sm2.PublicKey)
+   _= caCert.PublicKey.(sm2.PublicKey)
 
 
 	serverCertBytes,_:=ioutil.ReadFile(serverCrt)
