@@ -32,19 +32,37 @@ type sm2Signature struct {
 	R, S *big.Int
 }
 
+// Sign generates signature for the input message using the private key and id.
 func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-    hFunc:=opts.HashFunc()
-    var h hash.Hash
-	if  hFunc==255 {
-		h=sm3.New()
-	}else {
-		h=hFunc.New()
+	hashFun := opts.HashFunc()
+	var hash hash.Hash
+	if hashFun.Available() {
+		hash = hashFun.New()
+	} else {
+		hash = sm3.New()
 	}
-	r, s, err := Sign(rand, priv, DEFAULT_ID, digest, h)
-	if err != nil {
+	r, s, error := Sign(rand, priv, DEFAULT_ID, digest, hash)
+	if error != nil {
 		return nil, err
-	}
+	}  
 	return asn1.Marshal(sm2Signature{r, s})
+	
+}
+
+// Verify checks whether the input (r, s) is a valid signature for the message.
+func (pub *PublicKey) Verify(msg []byte, hasher hash.Hash, r, s *big.Int) bool {
+	N := pub.Params().N
+	if N.Sign() == 0 {
+		return false
+	}
+	mz, err := getZ(msg, pub, DEFAULT_ID, hasher)
+	if err != nil {
+		return false
+	}
+	hasher.Reset()
+	hasher.Write(mz)
+	digest := hasher.Sum(nil)
+	return verify(pub, digest, r, s)
 }
 
 // GenerateKey generates a public and private key pair.

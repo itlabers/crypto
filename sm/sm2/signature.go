@@ -79,17 +79,8 @@ func getZ(msg []byte, pub *PublicKey, userID string, hasher hash.Hash) ([]byte, 
 	return append(h, msg...), nil
 }
 
-// Sign generates signature for the input message using the private key and id.
-// It returns (r, s) as the signature or error.
-func Sign(rand io.Reader, priv *PrivateKey, id string, msg []byte, hasher hash.Hash) (r, s *big.Int, err error) {
-	mz, err := getZ(msg, &priv.PublicKey, id, hasher)
-	if err != nil {
-		return
-	}
-	hasher.Reset()
-	hasher.Write(mz)
-	digest := hasher.Sum(nil)
-
+// sign generates signature for the input message using the private key and id.
+func sign(rand io.Reader, priv *PrivateKey, digest []byte) (r, s *big.Int, err error) {
 	entropyLen := (priv.Params().BitSize + 7) >> 4
 	if entropyLen > 32 {
 		entropyLen = 32
@@ -101,7 +92,7 @@ func Sign(rand io.Reader, priv *PrivateKey, id string, msg []byte, hasher hash.H
 		return
 	}
 	var k *big.Int
-	e := new(big.Int).SetBytes(digest[:])
+	e := new(big.Int).SetBytes(digest)
 	for {
 		for {
 			k, err = randFieldElement(priv.Curve, rand)
@@ -137,12 +128,11 @@ func Sign(rand io.Reader, priv *PrivateKey, id string, msg []byte, hasher hash.H
 }
 
 // Verify checks whether the input (r, s) is a valid signature for the message.
-func Verify(pub *PublicKey, id string, msg []byte, hasher hash.Hash, r, s *big.Int) bool {
+func verify(pub *PublicKey, digest []byte, r, s *big.Int) bool {
 	N := pub.Params().N
 	if N.Sign() == 0 {
 		return false
 	}
-
 	t := new(big.Int).Add(r, s)
 	t.Mod(t, N)
 
@@ -154,17 +144,37 @@ func Verify(pub *PublicKey, id string, msg []byte, hasher hash.Hash, r, s *big.I
 		x2, y2 := pub.ScalarMult(pub.X, pub.Y, t.Bytes())
 		x, _ = pub.Add(x1, y1, x2, y2)
 	}
+	e := new(big.Int).SetBytes(digest)
+	x.Add(x, e)
+	x.Mod(x, N)
+	return x.Cmp(r) == 0
+}
 
+// Sign generates signature for the input message using the private key and id.
+// It returns (r, s) as the signature or error.
+func Sign(rand io.Reader, priv *PrivateKey, id string, msg []byte, hasher hash.Hash) (r, s *big.Int, err error) {
+	mz, err := getZ(msg, &priv.PublicKey, id, hasher)
+	if err != nil {
+		return
+	}
+	hasher.Reset()
+	hasher.Write(mz)
+	digest := hasher.Sum(nil)
+	return sign(rand, priv, digest)
+}
+
+// Verify checks whether the input (r, s) is a valid signature for the message.
+func Verify(pub *PublicKey, id string, msg []byte, hasher hash.Hash, r, s *big.Int) bool {
+	N := pub.Params().N
+	if N.Sign() == 0 {
+		return false
+	}
 	mz, err := getZ(msg, pub, id, hasher)
 	if err != nil {
 		return false
 	}
-
 	hasher.Reset()
 	hasher.Write(mz)
 	digest := hasher.Sum(nil)
-	e := new(big.Int).SetBytes(digest[:])
-	x.Add(x, e)
-	x.Mod(x, N)
-	return x.Cmp(r) == 0
+	return verify(pub, digest, r, s)
 }

@@ -11,8 +11,9 @@ import (
 
 var hashFunc func() hash.Hash
 
-func init() {
-	//crypto.RegisterHash(crypto.SM3, New)
+const SM3 = 255
+
+func init() { 
 	hashFunc = New
 }
 
