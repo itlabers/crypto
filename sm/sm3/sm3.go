@@ -13,26 +13,24 @@ var hashFunc func() hash.Hash
 
 const SM3 = 255
 
-func init() { 
+func init() {
 	hashFunc = New
 }
 
-// The size of a SHA256 checksum in bytes.
 const Size = 32
 
-// The blocksize of SHA256 and SHA224 in bytes.
 const BlockSize = 64
 
 const (
 	chunk = 64
-	init0 = 0x7380166f
-	init1 = 0x4914b2b9
-	init2 = 0x172442d7
-	init3 = 0xda8a0600
-	init4 = 0xa96f30bc
-	init5 = 0x163138aa
-	init6 = 0xe38dee4d
-	init7 = 0xb0fb0e4e
+	initA = 0x7380166f
+	initB = 0x4914b2b9
+	initC = 0x172442d7
+	initD = 0xda8a0600
+	initE = 0xa96f30bc
+	initF = 0x163138aa
+	initG = 0xe38dee4d
+	initH = 0xb0fb0e4e
 )
 
 // digest represents the partial evaluation of a checksum.
@@ -44,14 +42,14 @@ type digest struct {
 }
 
 func (d *digest) Reset() {
-	d.h[0] = init0
-	d.h[1] = init1
-	d.h[2] = init2
-	d.h[3] = init3
-	d.h[4] = init4
-	d.h[5] = init5
-	d.h[6] = init6
-	d.h[7] = init7
+	d.h[0] = initA
+	d.h[1] = initB
+	d.h[2] = initC
+	d.h[3] = initD
+	d.h[4] = initE
+	d.h[5] = initF
+	d.h[6] = initG
+	d.h[7] = initH
 	d.nx = 0
 	d.len = 0
 }

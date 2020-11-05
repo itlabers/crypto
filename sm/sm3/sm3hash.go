@@ -27,6 +27,16 @@ func p0(X uint32) uint32 { return X ^ leftRotate(X, 9) ^ leftRotate(X, 17) }
 
 func p1(X uint32) uint32 { return X ^ leftRotate(X, 15) ^ leftRotate(X, 23) }
 
+var T = [64]uint32{
+	0x79CC4519, 0xF3988A32, 0xE7311465, 0xCE6228CB, 0x9CC45197, 0x3988A32F, 0x7311465E, 0xE6228CBC,
+	0xCC451979, 0x988A32F3, 0x311465E7, 0x6228CBCE, 0xC451979C, 0x88A32F39, 0x11465E73, 0x228CBCE6,
+	0x9D8A7A87, 0x3B14F50F, 0x7629EA1E, 0xEC53D43C, 0xD8A7A879, 0xB14F50F3, 0x629EA1E7, 0xC53D43CE,
+	0x8A7A879D, 0x14F50F3B, 0x29EA1E76, 0x53D43CEC, 0xA7A879D8, 0x4F50F3B1, 0x9EA1E762, 0x3D43CEC5,
+	0x7A879D8A, 0xF50F3B14, 0xEA1E7629, 0xD43CEC53, 0xA879D8A7, 0x50F3B14F, 0xA1E7629E, 0x43CEC53D,
+	0x879D8A7A, 0x0F3B14F5, 0x1E7629EA, 0x3CEC53D4, 0x79D8A7A8, 0xF3B14F50, 0xE7629EA1, 0xCEC53D43,
+	0x9D8A7A87, 0x3B14F50F, 0x7629EA1E, 0xEC53D43C, 0xD8A7A879, 0xB14F50F3, 0x629EA1E7, 0xC53D43CE,
+	0x8A7A879D, 0x14F50F3B, 0x29EA1E76, 0x53D43CEC, 0xA7A879D8, 0x4F50F3B1, 0x9EA1E762, 0x3D43CEC5}
+
 func msgPadding(message []byte) []byte {
 	// Pre-processing:
 	chunk := message
@@ -41,28 +51,12 @@ func msgPadding(message []byte) []byte {
 	}
 	var l uint64
 	l = uint64(len(message) * 8)
-
-	//	l := byte((len(message) * 8))()
-	chunk = append(chunk, byte((l>>56)&0xff))
-	chunk = append(chunk, byte((l>>48)&0xff))
-	chunk = append(chunk, byte((l>>40)&0xff))
-	chunk = append(chunk, byte((l>>32)&0xff))
-	chunk = append(chunk, byte((l>>24)&0xff))
-	chunk = append(chunk, byte((l>>16)&0xff))
-	chunk = append(chunk, byte((l>>8)&0xff))
-	chunk = append(chunk, byte(l&0xff))
-
-	//	hstr := biu.BytesToHexString(chunk)
-	//	fmt.Println(len(hstr))
-	//	fmt.Println("test" + hstr)
-
-	//	return hstr
+	chunk = append(chunk, byte((l>>56)&0xff), byte((l>>48)&0xff), byte((l>>40)&0xff), byte((l>>32)&0xff), byte((l>>24)&0xff), byte((l>>16)&0xff), byte((l>>8)&0xff), byte(l&0xff))
 	return chunk
 }
 
 type W struct {
 	W1 [68]uint32
-	W2 [64]uint32
 }
 
 func msgExp(x [16]uint32) W {
@@ -73,9 +67,6 @@ func msgExp(x [16]uint32) W {
 	}
 	for i = 16; i < 68; i++ {
 		wtmp.W1[i] = p1(wtmp.W1[i-16]^wtmp.W1[i-9]^leftRotate(wtmp.W1[i-3], 15)) ^ leftRotate(wtmp.W1[i-13], 7) ^ wtmp.W1[i-6]
-	}
-	for i = 0; i < 64; i++ {
-		wtmp.W2[i] = wtmp.W1[i] ^ wtmp.W1[i+4]
 	}
 	return wtmp
 }
@@ -93,15 +84,10 @@ func cF(V [8]uint32, Bmsg [16]uint32) [8]uint32 {
 	H = V[7]
 	wtmp := msgExp(Bmsg)
 	for j = 0; j < 16; j++ {
-		var jj int
-		if j < 33 {
-			jj = j
-		} else {
-			jj = j - 32
-		}
-		SS1 := leftRotate(leftRotate(A, 12)+E+leftRotate(0x79cc4519, uint32(jj)), 7)
-		SS2 := SS1 ^ leftRotate(A, 12)
-		TT1 := ff0(A, B, C) + D + SS2 + wtmp.W2[j]
+		SS2 := leftRotate(A, 12)
+		SS1 := leftRotate(SS2+E+T[j], 7)
+		SS2 = SS1 ^ leftRotate(A, 12)
+		TT1 := ff0(A, B, C) + D + SS2 + (wtmp.W1[j] ^ wtmp.W1[j+4])
 		TT2 := gg0(E, F, G) + H + SS1 + wtmp.W1[j]
 		D = C
 		C = leftRotate(B, 9)
@@ -113,15 +99,10 @@ func cF(V [8]uint32, Bmsg [16]uint32) [8]uint32 {
 		E = p0(TT2)
 	}
 	for j = 16; j < 64; j++ {
-		var jj int
-		if j < 33 {
-			jj = j
-		} else {
-			jj = j - 32
-		}
-		SS1 := leftRotate(leftRotate(A, 12)+E+leftRotate(0x7a879d8a, uint32(jj)), 7)
-		SS2 := SS1 ^ leftRotate(A, 12)
-		TT1 := ff1(A, B, C) + D + SS2 + wtmp.W2[j]
+		SS2 := leftRotate(A, 12)
+		SS1 := leftRotate(SS2+E+T[j], 7)
+		SS2 = SS1 ^ leftRotate(A, 12)
+		TT1 := ff1(A, B, C) + D + SS2 + (wtmp.W1[j] ^ wtmp.W1[j+4])
 		TT2 := gg1(E, F, G) + H + SS1 + wtmp.W1[j]
 		D = C
 		C = leftRotate(B, 9)
