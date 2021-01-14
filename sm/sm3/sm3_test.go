@@ -7,6 +7,10 @@
 package sm3
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -79,4 +83,34 @@ func BenchmarkHash1K(b *testing.B) {
 
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192)
+}
+func BenchmarkCompare(b *testing.B) {
+	b.Run("sha256", func(b *testing.B) {
+		sha256Hash, _ := hex.DecodeString("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+		msg, _ := hex.DecodeString("616263")
+		b.SetBytes(int64(8))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			h := sha256.New()
+			h.Write(msg)
+			hashed := h.Sum(nil)
+			if bytes.Compare(sha256Hash, hashed) != 0 {
+				b.Fatal(errors.New("not march"))
+			}
+		}
+	})
+	b.Run("sm3", func(b *testing.B) {
+		sm3Hash, _ := hex.DecodeString("66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0")
+		msg, _ := hex.DecodeString("616263")
+		b.SetBytes(int64(8))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			sm3 := New()
+			sm3.Write(msg)
+			hashed := sm3.Sum(nil)
+			if bytes.Compare(sm3Hash, hashed) != 0 {
+				b.Fatal(errors.New("not march"))
+			}
+		}
+	})
 }

@@ -55,22 +55,6 @@ func msgPadding(message []byte) []byte {
 	return chunk
 }
 
-type W struct {
-	W1 [68]uint32
-}
-
-func msgExp(x [16]uint32) W {
-	var i int
-	var wtmp W
-	for i = 0; i < 16; i++ {
-		wtmp.W1[i] = x[i]
-	}
-	for i = 16; i < 68; i++ {
-		wtmp.W1[i] = p1(wtmp.W1[i-16]^wtmp.W1[i-9]^leftRotate(wtmp.W1[i-3], 15)) ^ leftRotate(wtmp.W1[i-13], 7) ^ wtmp.W1[i-6]
-	}
-	return wtmp
-}
-
 func cF(V [8]uint32, Bmsg [16]uint32) [8]uint32 {
 	var j int
 	var A, B, C, D, E, F, G, H uint32
@@ -82,13 +66,21 @@ func cF(V [8]uint32, Bmsg [16]uint32) [8]uint32 {
 	F = V[5]
 	G = V[6]
 	H = V[7]
-	wtmp := msgExp(Bmsg)
+
+	var i int
+	var w [68]uint32
+	for i = 0; i < 16; i++ {
+		w[i] = Bmsg[i]
+	}
+	for i = 16; i < 68; i++ {
+		w[i] = p1(w[i-16]^w[i-9]^leftRotate(w[i-3], 15)) ^ leftRotate(w[i-13], 7) ^ w[i-6]
+	}
 	for j = 0; j < 16; j++ {
 		SS2 := leftRotate(A, 12)
 		SS1 := leftRotate(SS2+E+T[j], 7)
-		SS2 = SS1 ^ leftRotate(A, 12)
-		TT1 := ff0(A, B, C) + D + SS2 + (wtmp.W1[j] ^ wtmp.W1[j+4])
-		TT2 := gg0(E, F, G) + H + SS1 + wtmp.W1[j]
+		SS2 = SS1 ^ SS2
+		TT1 := ff0(A, B, C) + D + SS2 + (w[j] ^ w[j+4])
+		TT2 := gg0(E, F, G) + H + SS1 + w[j]
 		D = C
 		C = leftRotate(B, 9)
 		B = A
@@ -101,9 +93,9 @@ func cF(V [8]uint32, Bmsg [16]uint32) [8]uint32 {
 	for j = 16; j < 64; j++ {
 		SS2 := leftRotate(A, 12)
 		SS1 := leftRotate(SS2+E+T[j], 7)
-		SS2 = SS1 ^ leftRotate(A, 12)
-		TT1 := ff1(A, B, C) + D + SS2 + (wtmp.W1[j] ^ wtmp.W1[j+4])
-		TT2 := gg1(E, F, G) + H + SS1 + wtmp.W1[j]
+		SS2 = SS1 ^ SS2
+		TT1 := ff1(A, B, C) + D + SS2 + (w[j] ^ w[j+4])
+		TT2 := gg1(E, F, G) + H + SS1 + w[j]
 		D = C
 		C = leftRotate(B, 9)
 		B = A
